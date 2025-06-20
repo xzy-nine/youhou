@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         微博增强
 // @namespace    http://tampermonkey.net/
-// @version      1.0.1
+// @version      1.0.2
 // @description  微博增强功能：自动适应深色/浅色模式，评论悬浮窗，页面宽屏显示，支持扩展通知
 // @author       xzy-nine
 // @match        https://*.weibo.com/*
@@ -28,7 +28,9 @@
         enabled: GM_getValue('widescreen_enabled', true),
         loose: GM_getValue('widescreen_loose', false),
         notify_enabled: GM_getValue('widescreen_notify_enabled', false), // 默认关闭通知
-        ui_visible: GM_getValue('widescreen_ui_visible', true)
+        ui_visible: GM_getValue('widescreen_ui_visible', true),
+        panel_expanded: GM_getValue('widescreen_panel_expanded', true), // 是否展开面板
+        panel_position: GM_getValue('widescreen_panel_position', null) // 面板位置
     };
     
     // 保存宽屏配置
@@ -37,6 +39,8 @@
         GM_setValue('widescreen_loose', widescreenStore.loose);
         GM_setValue('widescreen_notify_enabled', widescreenStore.notify_enabled);
         GM_setValue('widescreen_ui_visible', widescreenStore.ui_visible);
+        GM_setValue('widescreen_panel_expanded', widescreenStore.panel_expanded);
+        GM_setValue('widescreen_panel_position', widescreenStore.panel_position);
     }
       // 微博宽屏CSS样式 - 基于宽屏.js优化版本
     const weiboWidescreenCSS = `
@@ -191,8 +195,8 @@
             }
         }
     `;
-      // 控制面板CSS样式
-    const controlPanelCSS = `
+      // 控制面板CSS样式    
+     const controlPanelCSS = `
         .weibo-enhance-panel {
             position: fixed;
             top: 50%;
@@ -205,14 +209,108 @@
             padding: 16px;
             min-width: 200px;
             opacity: 0.9;
-            transition: all 0.3s ease;
+            transition: opacity 0.3s ease, transform 0.3s ease, background 0.3s ease;
             z-index: 999;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            cursor: move; /* 表明面板可拖动 */
+            user-select: none; /* 防止拖动时选中文字 */
         }
         
         .weibo-enhance-panel:hover {
             opacity: 1;
-            transform: translateY(-50%) scale(1.02);
+        }
+        
+        /* 缩小的齿轮图标状态 */
+        .weibo-enhance-panel.collapsed {
+            min-width: unset;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            padding: 0;
+            background: #1890ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            opacity: 0.8;
+            border: none;
+            transform: translateY(-50%) scale(1);
+            transition: all 0.3s ease;
+        }
+        
+        .weibo-enhance-panel.collapsed:hover {
+            transform: translateY(-50%) scale(1.1);
+            opacity: 1;
+        }
+        
+        /* 面板内容容器 */
+        .panel-content {
+            width: 100%;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+        
+        .weibo-enhance-panel.collapsed .panel-content {
+            display: none;
+        }
+        
+        /* 齿轮图标 */
+        .panel-gear-icon {
+            display: none; /* 默认隐藏 */
+            color: white;
+            font-size: 22px;
+            animation: spin 10s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .weibo-enhance-panel.collapsed .panel-gear-icon {
+            display: block;
+        }
+        
+        /* 关闭按钮 */
+        .panel-close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: var(--panel-text-secondary, #666);
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 1;
+            padding: 0;
+            opacity: 0.7;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        
+        .panel-close-btn:hover {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+        
+        /* 折叠/展开按钮 */
+        .panel-toggle-btn {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: var(--button-bg, #fff);
+            border: 1px solid var(--button-border, #ddd);
+            border-radius: 4px;
+            color: var(--button-text, #333);
+            cursor: pointer;
+            font-size: 12px;
+            padding: 3px 8px;
+            opacity: 0.8;
+            transition: opacity 0.2s ease;
+        }
+        
+        .panel-toggle-btn:hover {
+            opacity: 1;
+            background: var(--button-hover-bg, #f5f5f5);
         }
         
         .weibo-enhance-panel h3 {
@@ -706,58 +804,182 @@
         if (!widescreenStore.ui_visible) return null;
         
         const panel = document.createElement('div');
-        panel.className = 'weibo-enhance-panel';
-        panel.innerHTML = `
-            <h3>微博增强</h3>
-            
-            <div class="control-group">
-                <div class="control-title">宽屏功能</div>
-                <button id="widescreen-toggle" class="${widescreenStore.enabled ? 'active' : ''}">
-                    <span class="status-indicator ${widescreenStore.enabled ? 'on' : 'off'}"></span>
-                    ${widescreenStore.enabled ? '已开启' : '已关闭'}
-                </button>
-                ${widescreenStore.enabled ? `
-                    <div class="checkbox-control">
-                        <input type="checkbox" id="loose-mode" ${widescreenStore.loose ? 'checked' : ''}>
-                        <label for="loose-mode">更宽模式</label>
-                    </div>
-                ` : ''}
-            </div>
-            
-            <div class="control-group">
-                <div class="control-title">主题切换</div>
-                <button id="theme-toggle">
-                    <span class="status-indicator ${getCurrentWebsiteMode() ? 'on' : 'off'}"></span>
-                    切换主题
-                </button>
-                <button id="theme-reset">重置跟随</button>
-            </div>
-            
-            <div class="control-group">
-                <div class="control-title">其他功能</div>
-                <div class="checkbox-control">
-                    <input type="checkbox" id="notification-toggle" ${widescreenStore.notify_enabled ? 'checked' : ''}>
-                    <label for="notification-toggle">启用通知</label>
+        panel.className = 'weibo-enhance-panel' + (widescreenStore.panel_expanded ? '' : ' collapsed');
+        
+        // 设置面板位置（如果有保存的位置）
+        if (widescreenStore.panel_position) {
+            panel.style.top = widescreenStore.panel_position.top;
+            panel.style.right = widescreenStore.panel_position.right;
+            panel.style.transform = 'none';
+        }
+        
+        // 齿轮图标 (⚙️)
+        const gearIcon = '<div class="panel-gear-icon">⚙️</div>';
+        
+        // 创建面板内容
+        let panelContent = `
+            <div class="panel-content">
+                <h3>微博增强</h3>
+                <button class="panel-close-btn" aria-label="关闭">×</button>
+                
+                <div class="control-group">
+                    <div class="control-title">宽屏功能</div>
+                    <button id="widescreen-toggle" class="${widescreenStore.enabled ? 'active' : ''}">
+                        <span class="status-indicator ${widescreenStore.enabled ? 'on' : 'off'}"></span>
+                        ${widescreenStore.enabled ? '已开启' : '已关闭'}
+                    </button>
+                    ${widescreenStore.enabled ? `
+                        <div class="checkbox-control">
+                            <input type="checkbox" id="loose-mode" ${widescreenStore.loose ? 'checked' : ''}>
+                            <label for="loose-mode">更宽模式</label>
+                        </div>
+                    ` : ''}
                 </div>
+                
+                <div class="control-group">
+                    <div class="control-title">主题切换</div>
+                    <button id="theme-toggle">
+                        <span class="status-indicator ${getCurrentWebsiteMode() ? 'on' : 'off'}"></span>
+                        切换主题
+                    </button>
+                    <button id="theme-reset">重置跟随</button>
+                </div>
+                
+                <div class="control-group">
+                    <div class="control-title">其他功能</div>
+                    <div class="checkbox-control">
+                        <input type="checkbox" id="notification-toggle" ${widescreenStore.notify_enabled ? 'checked' : ''}>
+                        <label for="notification-toggle">启用通知</label>
+                    </div>
+                </div>
+                
+                <button class="panel-toggle-btn">收起</button>
             </div>
         `;
+        
+        panel.innerHTML = gearIcon + panelContent;
         
         // 绑定事件
         bindControlEvents(panel);
         
+        // 添加面板拖动功能
+        makeElementDraggable(panel);
+        
+        // 添加自动关闭功能
+        setupAutoDismiss(panel);
+        
         document.body.appendChild(panel);
     }
     
-    // 绑定控制面板事件
+    // 拖动功能实现
+    function makeElementDraggable(element) {
+        let offsetX = 0, offsetY = 0;
+        let isDragging = false;
+        
+        // 鼠标按下开始拖动
+        element.addEventListener('mousedown', function(e) {
+            // 如果点击的是按钮或输入框，不触发拖动
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.tagName === 'LABEL') {
+                return;
+            }
+            
+            // 记录初始位置偏移
+            isDragging = true;
+            offsetX = e.clientX - element.getBoundingClientRect().left;
+            offsetY = e.clientY - element.getBoundingClientRect().top;
+            
+            // 添加临时样式增强拖动体验
+            element.style.transition = 'none';
+            element.style.cursor = 'grabbing';
+        });
+        
+        // 鼠标移动更新位置
+        document.addEventListener('mousemove', function(e) {
+            if (!isDragging) return;
+            
+            // 计算新位置
+            const left = e.clientX - offsetX;
+            const top = e.clientY - offsetY;
+            
+            // 防止面板拖出窗口
+            const maxLeft = window.innerWidth - element.offsetWidth;
+            const maxTop = window.innerHeight - element.offsetHeight;
+            
+            const newLeft = Math.min(Math.max(0, left), maxLeft);
+            const newTop = Math.min(Math.max(0, top), maxTop);
+            
+            // 设置面板的新位置
+            element.style.left = newLeft + 'px';
+            element.style.top = newTop + 'px';
+            element.style.right = 'auto';
+            element.style.transform = 'none';
+            
+            // 防止事件冒泡
+            e.preventDefault();
+        });
+        
+        // 鼠标释放结束拖动
+        document.addEventListener('mouseup', function() {
+            if (!isDragging) return;
+            
+            isDragging = false;
+            element.style.cursor = 'move';
+            element.style.transition = 'opacity 0.3s ease, transform 0.3s ease, background 0.3s ease';
+            
+            // 保存当前位置
+            const rect = element.getBoundingClientRect();
+            widescreenStore.panel_position = {
+                top: rect.top + 'px',
+                right: (window.innerWidth - rect.right) + 'px'
+            };
+            saveWidescreenConfig();
+        });
+        
+        // 拖动超出窗口时，也要结束拖动
+        element.addEventListener('mouseleave', function() {
+            if (isDragging) {
+                isDragging = false;
+                element.style.cursor = 'move';
+                element.style.transition = 'opacity 0.3s ease, transform 0.3s ease, background 0.3s ease';
+            }
+        });
+    }
+    
+    // 设置自动关闭功能
+    function setupAutoDismiss(panel) {
+        // 自动隐藏计时器
+        let autoDismissTimer;
+        
+        // 鼠标进入面板时清除定时器
+        panel.addEventListener('mouseenter', () => {
+            clearTimeout(autoDismissTimer);
+        });
+        
+        // 鼠标离开面板时启动定时器
+        panel.addEventListener('mouseleave', () => {
+            // 如果面板处于折叠状态，不自动关闭
+            if (panel.classList.contains('collapsed')) {
+                return;
+            }
+            
+            // 5秒后自动收起面板
+            autoDismissTimer = setTimeout(() => {
+                togglePanelCollapse(panel, true); // 收起面板
+            }, 5000);
+        });
+    }
+      // 绑定控制面板事件
     function bindControlEvents(panel) {
         // 宽屏开关
         const widescreenToggle = panel.querySelector('#widescreen-toggle');
-        widescreenToggle.addEventListener('click', () => {
-            widescreenStore.enabled = !widescreenStore.enabled;
-            saveWidescreenConfig();
-            simpleNotify(widescreenStore.enabled ? '宽屏已开启' : '宽屏已关闭');
-            setTimeout(() => location.reload(), 300);
-        });
+        if (widescreenToggle) {
+            widescreenToggle.addEventListener('click', () => {
+                widescreenStore.enabled = !widescreenStore.enabled;
+                saveWidescreenConfig();
+                simpleNotify(widescreenStore.enabled ? '宽屏已开启' : '宽屏已关闭');
+                setTimeout(() => location.reload(), 300);
+            });
+        }
         
         // 更宽模式
         const looseMode = panel.querySelector('#loose-mode');
@@ -778,44 +1000,91 @@
         
         // 主题切换
         const themeToggle = panel.querySelector('#theme-toggle');
-        themeToggle.addEventListener('click', () => {
-            const currentMode = getCurrentWebsiteMode();
-            const newMode = !currentMode;
-            
-            userOverride = true;
-            GM_setValue('userOverride', true);
-            
-            isScriptOperation = true;
-            setWebsiteMode(newMode);
-            isScriptOperation = false;
-            
-            simpleNotify(newMode ? '已切换到深色模式' : '已切换到浅色模式');
-        });
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => {
+                const currentMode = getCurrentWebsiteMode();
+                const newMode = !currentMode;
+                
+                userOverride = true;
+                GM_setValue('userOverride', true);
+                
+                isScriptOperation = true;
+                setWebsiteMode(newMode);
+                isScriptOperation = false;
+                
+                simpleNotify(newMode ? '已切换到深色模式' : '已切换到浅色模式');
+            });
+        }
         
         // 重置主题跟随
         const themeReset = panel.querySelector('#theme-reset');
-        themeReset.addEventListener('click', () => {
-            userOverride = false;
-            GM_setValue('userOverride', false);
-            const systemIsDark = GM_getValue('lastSystemMode', window.matchMedia('(prefers-color-scheme: dark)').matches);
-            
-            isScriptOperation = true;
-            setWebsiteMode(systemIsDark);
-            isScriptOperation = false;
-            
-            simpleNotify('已恢复跟随系统主题');
-        });
+        if (themeReset) {
+            themeReset.addEventListener('click', () => {
+                userOverride = false;
+                GM_setValue('userOverride', false);
+                const systemIsDark = GM_getValue('lastSystemMode', window.matchMedia('(prefers-color-scheme: dark)').matches);
+                
+                isScriptOperation = true;
+                setWebsiteMode(systemIsDark);
+                isScriptOperation = false;
+                
+                simpleNotify('已恢复跟随系统主题');
+            });
+        }
         
         // 通知开关
         const notificationToggle = panel.querySelector('#notification-toggle');
-        notificationToggle.addEventListener('change', (e) => {
-            widescreenStore.notify_enabled = e.target.checked;
-            saveWidescreenConfig();
-            simpleNotify(widescreenStore.notify_enabled ? '通知已开启' : '通知已关闭');
+        if (notificationToggle) {
+            notificationToggle.addEventListener('change', (e) => {
+                widescreenStore.notify_enabled = e.target.checked;
+                saveWidescreenConfig();
+                simpleNotify(widescreenStore.notify_enabled ? '通知已开启' : '通知已关闭');
+            });
+        }
+        
+        // 齿轮图标点击事件 - 展开面板
+        panel.addEventListener('click', (e) => {
+            // 如果面板已折叠且点击的是面板(或齿轮图标)
+            if (panel.classList.contains('collapsed')) {
+                togglePanelCollapse(panel, false); // 展开面板
+            }
         });
+        
+        // 收起按钮点击事件
+        const toggleBtn = panel.querySelector('.panel-toggle-btn');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                togglePanelCollapse(panel, true); // 折叠面板
+            });
+        }
+        
+        // 关闭按钮点击事件
+        const closeBtn = panel.querySelector('.panel-close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                // 隐藏面板
+                panel.style.display = 'none';
+                widescreenStore.ui_visible = false;
+                saveWidescreenConfig();
+                simpleNotify('控制面板已隐藏');
+            });
+        }
     }
-      // 注册菜单命令（简化版）
-    function registerMenus() {        GM_registerMenuCommand('显示/隐藏控制面板', function() {
+    
+    // 折叠/展开面板函数
+    function togglePanelCollapse(panel, collapse) {
+        if (collapse) {
+            panel.classList.add('collapsed');
+            widescreenStore.panel_expanded = false;
+        } else {
+            panel.classList.remove('collapsed');
+            widescreenStore.panel_expanded = true;
+        }
+        saveWidescreenConfig();    }
+    
+    // 注册菜单命令（简化版）    
+    function registerMenus() {        
+        GM_registerMenuCommand('显示/隐藏控制面板', function() {
             widescreenStore.ui_visible = !widescreenStore.ui_visible;
             saveWidescreenConfig();
             
@@ -824,6 +1093,12 @@
             if (panel) {
                 if (widescreenStore.ui_visible) {
                     panel.style.display = '';
+                    // 显示时恢复到上次的展开/折叠状态
+                    if (widescreenStore.panel_expanded) {
+                        togglePanelCollapse(panel, false);
+                    } else {
+                        togglePanelCollapse(panel, true);
+                    }
                 } else {
                     panel.style.display = 'none';
                 }
@@ -842,7 +1117,9 @@
                     enabled: true,
                     loose: false,
                     notify_enabled: false, // 默认关闭通知
-                    ui_visible: true
+                    ui_visible: true,
+                    panel_expanded: true,
+                    panel_position: null
                 };
                 saveWidescreenConfig();
                 
@@ -850,11 +1127,11 @@
                 userOverride = false;
                 GM_setValue('userOverride', false);
                 
-                simpleNotify('所有设置已重置');
-                setTimeout(() => location.reload(), 500);
+                simpleNotify('所有设置已重置');                setTimeout(() => location.reload(), 500);
             }
         });
-    }    // ===========================================
+    }
+    // ===========================================
     // 原有的深色模式和评论功能代码
     // ===========================================
     
@@ -1787,12 +2064,8 @@
         }
     }
     
-    // 初始化
-    initialize();
-      // 注册菜单命令
-    registerMenus();
-    
-    // 页面完全加载后不再显示额外的状态指示器，避免重复通知
-    // 初始化通知已经在 initialize 函数中处理
-
-})();
+        // 初始化
+        initialize();
+        // 注册菜单命令
+        registerMenus();
+    })();
