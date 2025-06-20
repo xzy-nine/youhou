@@ -95,7 +95,8 @@ npm run build
    - [Edge 版 Tampermonkey](https://microsoftedge.microsoft.com/addons/detail/tampermonkey/iikmkjmpaadaobahmlepeloendndfphd)
 
 2. 安装脚本：
-   - 点击 `dist` 目录下的 `weibo-up.user.js` 文件
+   - [点击此处直接安装脚本](https://gh-proxy.com/https://raw.githubusercontent.com/xzy-nine/youhou/main/weibo-up/dist/weibo-up.user.js)
+   - 或者点击 `dist` 目录下的 `weibo-up.user.js` 文件
    - 或者在油猴扩展中创建新脚本，并粘贴构建生成的代码
 
 ## 使用方法

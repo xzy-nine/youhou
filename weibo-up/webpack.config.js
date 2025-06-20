@@ -7,13 +7,12 @@ const UserscriptMetaDataPlugin = require('userscript-metadata-webpack-plugin');
 const metadata = {
   name: '微博增强',
   namespace: 'http://tampermonkey.net/',
-  version: '1.0.2',
-  description: '微博增强功能：自动适应深色/浅色模式，评论悬浮窗，页面宽屏显示，支持扩展通知',
+  version: '1.0.3',
+  description: '微博增强功能：自动适应深色/浅色模式，弹出页查看更多评论，页面宽屏显示',
   author: 'xzy-nine',
   match: [
     'https://*.weibo.com/*'
-  ],
-  grant: [
+  ],  grant: [
     'GM_setValue',
     'GM_getValue',
     'GM_deleteValue',
@@ -21,8 +20,8 @@ const metadata = {
     'GM_addStyle'
   ],
   run_at: 'document-start',
-  updateURL: 'https://gh-proxy.com/https://raw.githubusercontent.com/xzy-nine/youhou/main/weibo-up.js',
-  downloadURL: 'https://gh-proxy.com/https://raw.githubusercontent.com/xzy-nine/youhou/main/weibo-up.js',
+  updateURL: 'https://gh-proxy.com/https://raw.githubusercontent.com/xzy-nine/youhou/main/weibo-up/dist/weibo-up.user.js',
+  downloadURL: 'https://gh-proxy.com/https://raw.githubusercontent.com/xzy-nine/youhou/main/weibo-up/dist/weibo-up.user.js',
   supportURL: 'https://github.com/xzy-nine/youhou/issues',
   homepageURL: 'https://github.com/xzy-nine/youhou'
 };

@@ -11,8 +11,8 @@
 // @grant        GM_registerMenuCommand
 // @grant        GM_addStyle
 // @run-at       document-start
-// @updateURL    https://gh-proxy.com/https://raw.githubusercontent.com/xzy-nine/youhou/main/weibo-up.js
-// @downloadURL  https://gh-proxy.com/https://raw.githubusercontent.com/xzy-nine/youhou/main/weibo-up.js
+// @updateURL    https://gh-proxy.com/https://raw.githubusercontent.com/xzy-nine/youhou/main/weibo-up/dist/weibo-up.user.js
+// @downloadURL  https://gh-proxy.com/https://raw.githubusercontent.com/xzy-nine/youhou/main/weibo-up/dist/weibo-up.user.js
 // @supportURL   https://github.com/xzy-nine/youhou/issues
 // @homepageURL  https://github.com/xzy-nine/youhou
 // ==/UserScript==

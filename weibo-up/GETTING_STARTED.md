@@ -45,7 +45,7 @@
 
 当你完成更改并准备发布新版本时：
 
-1. 更新 `webpack.config.js` 文件中的版本号
+1. 更新 `weibo-up\webpack.config.js` 文件中的版本号
 2. 运行构建命令生成发布版本：
    ```bash
    npm run build
