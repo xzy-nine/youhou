@@ -987,9 +987,9 @@
             justify-content: center;
             z-index: 1;
         }
-        
-        /* 深色模式样式 */
-        body.woo-theme-dark .comment-modal {
+          /* 深色模式样式 */
+        body.woo-theme-dark .comment-modal,
+        .comment-modal[data-theme="dark"] {
             --bg-color: #1d1f23;
             --border-color: #38444d;
             --header-bg: #15181c;
@@ -998,7 +998,8 @@
         }
         
         /* 浅色模式样式 */
-        body.woo-theme-light .comment-modal {
+        body.woo-theme-light .comment-modal,
+        .comment-modal[data-theme="light"] {
             --bg-color: #ffffff;
             --border-color: #e1e8ed;
             --header-bg: #f7f9fa;
@@ -1148,14 +1149,17 @@
                 }
             }, 300);
         }, 2000);
-    }
-
-    // 创建评论悬浮窗
+    }    // 创建评论悬浮窗
     function createCommentModal() {
         const overlay = document.createElement('div');
         overlay.className = 'comment-modal-overlay';
+        
+        // 获取当前网站模式（深色/浅色）
+        const isDarkMode = getCurrentWebsiteMode();
+        const themeClass = isDarkMode ? 'dark-theme' : 'light-theme';
+        
         overlay.innerHTML = `
-            <div class="comment-modal">
+            <div class="comment-modal" data-theme="${isDarkMode ? 'dark' : 'light'}">
                 <div class="comment-modal-header">
                     <div class="comment-modal-title">评论</div>
                     <button class="comment-modal-close" aria-label="关闭"></button>
@@ -1208,13 +1212,19 @@
             }
         }, 300);
     }
-    
-    // 显示评论悬浮窗
+      // 显示评论悬浮窗
     function showCommentModal(commentUrl, commentCount) {
         const modal = createCommentModal();
           // 更新标题
         const title = modal.querySelector('.comment-modal-title');
         title.textContent = '详情';
+        
+        // 确保使用正确的主题模式
+        const commentModalElement = modal.querySelector('.comment-modal');
+        const isDarkMode = getCurrentWebsiteMode();
+        if (commentModalElement) {
+            commentModalElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
+        }
         
         // 显示动画
         setTimeout(() => {
@@ -1223,7 +1233,7 @@
         
         // 加载评论内容
         loadCommentContent(modal, commentUrl);
-    }      // 加载评论内容
+    }// 加载评论内容
     function loadCommentContent(modal, commentUrl) {
         const contentDiv = modal.querySelector('.comment-modal-content');
         const loadingDiv = contentDiv.querySelector('.comment-modal-loading');
@@ -1232,8 +1242,7 @@
             // 创建iframe元素
             const iframe = document.createElement('iframe');
             iframe.className = 'comment-modal-iframe';
-            iframe.src = commentUrl;
-            iframe.onload = function() {
+            iframe.src = commentUrl;            iframe.onload = function() {
                 // iframe加载完成后隐藏loading
                 if (loadingDiv) {
                     loadingDiv.style.display = 'none';
@@ -1243,6 +1252,27 @@
                 try {
                     const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
                     if (iframeDoc && iframeDoc.head && widescreenStore.enabled) {
+                        // 同步当前页面的主题模式到iframe
+                        const currentWebsiteMode = getCurrentWebsiteMode();
+                        if (currentWebsiteMode) {
+                            iframeDoc.body.classList.add("woo-theme-dark");
+                            iframeDoc.body.classList.remove("woo-theme-light");
+                            iframeDoc.documentElement.setAttribute('data-theme', 'dark');
+                        } else {
+                            iframeDoc.body.classList.add("woo-theme-light");
+                            iframeDoc.body.classList.remove("woo-theme-dark");
+                            iframeDoc.documentElement.setAttribute('data-theme', 'light');
+                        }
+                        
+                        // 确保模态框也与当前主题匹配
+                        const modal = iframe.closest('.comment-modal');
+                        if (modal) {
+                            if (currentWebsiteMode) {
+                                modal.setAttribute('data-theme', 'dark');
+                            } else {
+                                modal.setAttribute('data-theme', 'light');
+                            }
+                        }
                         const style = iframeDoc.createElement('style');
                         style.id = 'widescreen-style';
                         style.textContent = weiboWidescreenCSS;
@@ -1540,8 +1570,10 @@
                     } else {
                         document.body.classList.add("woo-theme-light");
                         document.documentElement.setAttribute('data-theme', 'light');
-                    }
-                      console.log(`[微博主题] 已设置为${isDark ? '深色' : '浅色'}模式`);
+                    }                    console.log(`[微博主题] 已设置为${isDark ? '深色' : '浅色'}模式`);
+                    
+                    // 更新评论悬浮窗的主题
+                    updateCommentModalsTheme(isDark);
                     
                     // 启动DOM观察器，确保主题在页面变化时保持
                     startThemeObserver(isDark);
@@ -1605,6 +1637,32 @@
         return userId || 0;
     }
 
+    // 更新所有已打开的评论模态框的主题
+    function updateCommentModalsTheme(isDark) {
+        // 更新所有已打开的评论模态框
+        const commentModals = document.querySelectorAll('.comment-modal');
+        commentModals.forEach(modal => {
+            modal.setAttribute('data-theme', isDark ? 'dark' : 'light');
+            
+            // 尝试更新iframe内容的主题
+            const iframe = modal.querySelector('.comment-modal-iframe');
+            if (iframe) {
+                try {
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    if (iframeDoc && iframeDoc.body) {
+                        // 更新iframe内的主题
+                        iframeDoc.body.classList.remove('woo-theme-dark', 'woo-theme-light');
+                        iframeDoc.body.classList.add(isDark ? 'woo-theme-dark' : 'woo-theme-light');
+                        iframeDoc.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+                    }
+                } catch (error) {
+                    // 忽略跨域iframe错误
+                    console.log('无法更新iframe主题（可能是跨域）');
+                }
+            }
+        });
+    }
+    
     // 启动主题观察器，防止页面动态修改时主题被重置
     function startThemeObserver(isDark) {
         if (observer) {
