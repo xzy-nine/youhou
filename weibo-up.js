@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         微博增强
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.0.1
 // @description  微博增强功能：自动适应深色/浅色模式，评论悬浮窗，页面宽屏显示，支持扩展通知
 // @author       xzy-nine
 // @match        https://*.weibo.com/*
