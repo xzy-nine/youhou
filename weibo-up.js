@@ -683,9 +683,23 @@
     }
       // 创建统一控制面板
     function createControlPanel() {
-        if (!widescreenStore.ui_visible) return;
+        // 添加样式只需要添加一次
+        if (!document.querySelector('#weibo-enhance-panel-style')) {
+            const styleElement = document.createElement('style');
+            styleElement.id = 'weibo-enhance-panel-style';
+            styleElement.textContent = controlPanelCSS;
+            document.head.appendChild(styleElement);
+        }
         
-        GM_addStyle(controlPanelCSS);
+        // 如果面板已存在，根据visible状态显示或隐藏
+        const existingPanel = document.querySelector('.weibo-enhance-panel');
+        if (existingPanel) {
+            existingPanel.style.display = widescreenStore.ui_visible ? '' : 'none';
+            return existingPanel;
+        }
+        
+        // 如果设置为不可见且没有现有面板，则不创建
+        if (!widescreenStore.ui_visible) return null;
         
         const panel = document.createElement('div');
         panel.className = 'weibo-enhance-panel';
@@ -797,12 +811,24 @@
         });
     }
       // 注册菜单命令（简化版）
-    function registerMenus() {
-        GM_registerMenuCommand('显示/隐藏控制面板', function() {
+    function registerMenus() {        GM_registerMenuCommand('显示/隐藏控制面板', function() {
             widescreenStore.ui_visible = !widescreenStore.ui_visible;
             saveWidescreenConfig();
+            
+            // 动态显示/隐藏控制面板，而不是重载页面
+            const panel = document.querySelector('.weibo-enhance-panel');
+            if (panel) {
+                if (widescreenStore.ui_visible) {
+                    panel.style.display = '';
+                } else {
+                    panel.style.display = 'none';
+                }
+            } else if (widescreenStore.ui_visible) {
+                // 如果面板不存在但应该显示，则创建面板
+                createControlPanel();
+            }
+            
             simpleNotify(widescreenStore.ui_visible ? '控制面板已显示' : '控制面板已隐藏');
-            setTimeout(() => location.reload(), 300);
         });
         
         GM_registerMenuCommand('重置所有设置', function() {
@@ -824,14 +850,9 @@
                 setTimeout(() => location.reload(), 500);
             }
         });
-    }
-
-    // ===========================================
+    }    // ===========================================
     // 原有的深色模式和评论功能代码
     // ===========================================
-    
-    // 扩展通知API引用
-    let ExtensionAPI = null;
     
     // 用户手动覆盖标志
     let userOverride = GM_getValue('userOverride', false);
@@ -1435,96 +1456,7 @@
         }
     });
 
-    // 等待扩展通知API准备就绪
-    function waitForExtensionAPI(timeout = 5000) {
-        return new Promise((resolve) => {
-            let resolved = false;
-            
-            // 创建API代理对象
-            const createAPIProxy = () => {
-                let requestIdCounter = 0;
-                const pendingRequests = new Map();
-                
-                // 监听响应
-                const messageHandler = (event) => {
-                    if (event.origin !== window.location.origin) return;
-                    
-                    if (event.data?.type === 'EXTENSION_NOTIFICATION_RESPONSE') {
-                        const { requestId, success, result, error } = event.data;
-                        const pendingRequest = pendingRequests.get(requestId);
-                        
-                        if (pendingRequest) {
-                            pendingRequests.delete(requestId);
-                            if (success) {
-                                pendingRequest.resolve(result);
-                            } else {
-                                pendingRequest.reject(new Error(error));
-                            }
-                        }
-                    }
-                };
-                
-                window.addEventListener('message', messageHandler);
-                
-                // 创建API方法包装器
-                const createMethod = (method) => {
-                    return (title, message, duration) => {
-                        return new Promise((resolve, reject) => {
-                            const requestId = `req_${++requestIdCounter}_${Date.now()}`;
-                            
-                            pendingRequests.set(requestId, { resolve, reject });
-                            
-                            window.postMessage({
-                                type: 'EXTENSION_NOTIFICATION_REQUEST',
-                                method,
-                                params: { title, message, duration },
-                                requestId
-                            }, '*');
-                            
-                            setTimeout(() => {
-                                if (pendingRequests.has(requestId)) {
-                                    pendingRequests.delete(requestId);
-                                    reject(new Error(`${method} request timeout`));
-                                }
-                            }, 3000);
-                        });
-                    };
-                };
-                
-                return {
-                    info: createMethod('info'),
-                    success: createMethod('success'),
-                    warning: createMethod('warning'),
-                    error: createMethod('error'),
-                    isAvailable: () => true
-                };
-            };
-            
-            // 设置超时
-            const timeoutId = setTimeout(() => {
-                if (!resolved) {
-                    resolved = true;
-                    resolve(null);
-                }
-            }, timeout);
-
-            // 监听API准备事件
-            const handleAPIReady = (event) => {
-                if (event.origin !== window.location.origin) return;
-                
-                if (event.data?.type === 'EXTENSION_NOTIFICATION_READY') {
-                    if (!resolved) {
-                        clearTimeout(timeoutId);
-                        resolved = true;
-                        resolve(createAPIProxy());
-                        window.removeEventListener('message', handleAPIReady);
-                    }
-                }
-            };
-            
-            window.addEventListener('message', handleAPIReady);
-        });
-    }    // 统一简化的初始化函数
+    // 等待扩展通知API准备就绪    // 移除扩展通知API，使用simpleNotify代替// 统一简化的初始化函数
     function initialize() {
         // 添加评论悬浮窗样式
         addCommentModalStyles();
@@ -1741,75 +1673,64 @@
         }
 
         return result;
-    };    // 初始化扩展API
-    async function initializeExtensionAPI() {
-        try {
-            ExtensionAPI = await waitForExtensionAPI();
-              if (ExtensionAPI && ExtensionAPI.isAvailable()) {
-                console.log('扩展通知API已连接');
+    };    // 初始化函数
+    function initialize() {
+        // 等待页面加载完成后设置初始模式
+        const setInitialMode = () => {
+            // 添加评论悬浮窗样式
+            addCommentModalStyles();
+            
+            // 启动评论链接拦截
+            interceptCommentLinks();
+              // 应用宽屏功能
+            applyWidescreenStyles();
+            
+            // 创建控制面板
+            if (document.body) {
+                createControlPanel();
             } else {
-                console.log('扩展通知API不可用，使用简化通知方式');
+                document.addEventListener('DOMContentLoaded', createControlPanel);
             }
-              // 等待页面加载完成后设置初始模式
-            const setInitialMode = () => {
-                // 添加评论悬浮窗样式
-                addCommentModalStyles();
-                
-                // 启动评论链接拦截
-                interceptCommentLinks();
-                  // 应用宽屏功能
-                applyWidescreenStyles();
-                
-                // 创建控制面板
-                if (document.body) {
-                    createControlPanel();
-                } else {
-                    document.addEventListener('DOMContentLoaded', createControlPanel);
+            
+            if (!userOverride) {
+                const currentWebsiteMode = getCurrentWebsiteMode();
+                // 只有当当前模式与期望模式不同时才切换
+                if (currentWebsiteMode !== prefersDarkMode) {
+                    isScriptOperation = true;
+                    setWebsiteMode(prefersDarkMode);
+                    isScriptOperation = false;
                 }
-                
-                if (!userOverride) {
-                    const currentWebsiteMode = getCurrentWebsiteMode();
-                    // 只有当当前模式与期望模式不同时才切换
-                    if (currentWebsiteMode !== prefersDarkMode) {
-                        isScriptOperation = true;
-                        setWebsiteMode(prefersDarkMode);
-                        isScriptOperation = false;
-                    }
-                    lastNotifiedMode = prefersDarkMode;
-                } else {
-                    const currentWebsiteMode = getCurrentWebsiteMode();
-                    console.log(`用户手动设置为${currentWebsiteMode ? '深色' : '浅色'}模式，保持不变`);
-                    lastNotifiedMode = currentWebsiteMode;
-                }
-                
-                lastNotifiedOverrideState = userOverride;
-                  // 只显示一次初始化通知
-                if (!hasShownInitialNotification) {
-                    hasShownInitialNotification = true;
-                    if (widescreenStore.notify_enabled) {
-                        simpleNotify('微博增强功能已激活');
-                    }
-                    console.log('%c[微博增强] 脚本已启动', 'color: #28a745; font-weight: bold;');
-                }
-            };
-
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', setInitialMode);
+                lastNotifiedMode = prefersDarkMode;
             } else {
-                setInitialMode();
-            }        } catch (error) {
-            isScriptOperation = false; // 确保在错误情况下也重置标记
-            console.error('初始化扩展API失败:', error);
-            // 使用简化通知方式
-            console.log('%c[微博增强] 脚本启动: 微博增强功能已激活（简化通知模式）', 'color: #28a745; font-weight: bold;');
+                const currentWebsiteMode = getCurrentWebsiteMode();
+                console.log(`用户手动设置为${currentWebsiteMode ? '深色' : '浅色'}模式，保持不变`);
+                lastNotifiedMode = currentWebsiteMode;
+            }
+            
+            lastNotifiedOverrideState = userOverride;
+              // 只显示一次初始化通知
+            if (!hasShownInitialNotification) {
+                hasShownInitialNotification = true;
+                if (widescreenStore.notify_enabled) {
+                    simpleNotify('微博增强功能已激活');
+                }
+                console.log('%c[微博增强] 脚本已启动', 'color: #28a745; font-weight: bold;');
+            }
+        };
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', setInitialMode);
+        } else {
+            setInitialMode();
         }
     }
     
     // 初始化
-    initializeExtensionAPI();
+    initialize();
+      // 注册菜单命令
+    registerMenus();
     
-    // 注册菜单命令
-    registerMenus();// 页面完全加载后不再显示额外的状态指示器，避免重复通知
-    // 初始化通知已经在 initializeExtensionAPI 中处理
+    // 页面完全加载后不再显示额外的状态指示器，避免重复通知
+    // 初始化通知已经在 initialize 函数中处理
 
 })();
