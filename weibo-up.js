@@ -3,7 +3,7 @@
 // @namespace    http://tampermonkey.net/
 // @version      1.2
 // @description  微博增强功能：自动适应深色/浅色模式，评论悬浮窗，页面宽屏显示，支持扩展通知
-// @author       You
+// @author       xzy-nine
 // @match        https://*.weibo.com/*
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -11,6 +11,10 @@
 // @grant        GM_registerMenuCommand
 // @grant        GM_addStyle
 // @run-at       document-start
+// @updateURL    https://gh-proxy.com/https://raw.githubusercontent.com/xzy-nine/youhou/main/weibo-up.js
+// @downloadURL  https://gh-proxy.com/https://raw.githubusercontent.com/xzy-nine/youhou/main/weibo-up.js
+// @supportURL   https://github.com/xzy-nine/youhou/issues
+// @homepageURL  https://github.com/xzy-nine/youhou
 // ==/UserScript==
 
 (function() {
