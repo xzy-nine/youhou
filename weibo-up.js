@@ -195,8 +195,8 @@
             }
         }
     `;
-      // 控制面板CSS样式    
-     const controlPanelCSS = `
+      // 控制面板CSS样式      
+      const controlPanelCSS = `
         .weibo-enhance-panel {
             position: fixed;
             top: 50%;
@@ -208,6 +208,8 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.1);
             padding: 16px;
             min-width: 200px;
+            /* 添加过渡效果，使方向变化平滑 */
+            transition: transform 0.3s ease, left 0.3s ease, right 0.3s ease;
             opacity: 0.9;
             transition: opacity 0.3s ease, transform 0.3s ease, background 0.3s ease;
             z-index: 999;
@@ -242,8 +244,7 @@
             transform: translateY(-50%) scale(1.1);
             opacity: 1;
         }
-        
-        /* 面板内容容器 */
+          /* 面板内容容器 */
         .panel-content {
             width: 100%;
             opacity: 1;
@@ -270,40 +271,35 @@
         .weibo-enhance-panel.collapsed .panel-gear-icon {
             display: block;
         }
-        
-        /* 关闭按钮 */
+          /* 关闭按钮 */
         .panel-close-btn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
             background: none;
             border: none;
             color: var(--panel-text-secondary, #666);
             cursor: pointer;
-            font-size: 18px;
+            font-size: 14px;
             line-height: 1;
-            padding: 0;
-            opacity: 0.7;
+            padding: 8px 12px;
+            opacity: 0.8;
             transition: opacity 0.2s ease, transform 0.2s ease;
+            border-radius: 6px;
         }
         
         .panel-close-btn:hover {
             opacity: 1;
-            transform: scale(1.1);
+            background: var(--button-hover-bg, #f5f5f5);
+            color: var(--button-text, #333);
         }
         
         /* 折叠/展开按钮 */
         .panel-toggle-btn {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
             background: var(--button-bg, #fff);
             border: 1px solid var(--button-border, #ddd);
-            border-radius: 4px;
+            border-radius: 6px;
             color: var(--button-text, #333);
             cursor: pointer;
             font-size: 12px;
-            padding: 3px 8px;
+            padding: 8px 12px;
             opacity: 0.8;
             transition: opacity 0.2s ease;
         }
@@ -312,8 +308,7 @@
             opacity: 1;
             background: var(--button-hover-bg, #f5f5f5);
         }
-        
-        .weibo-enhance-panel h3 {
+          .weibo-enhance-panel h3 {
             margin: 0 0 12px 0;
             font-size: 14px;
             font-weight: 600;
@@ -428,9 +423,24 @@
         .weibo-enhance-panel .status-indicator.on {
             background: #52c41a;
         }
-        
-        .weibo-enhance-panel .status-indicator.off {
+          .weibo-enhance-panel .status-indicator.off {
             background: #f5222d;
+        }
+        
+        /* 拖动结束后暂时禁用点击 */
+        .weibo-enhance-panel.dragging-ended {
+            pointer-events: none;
+        }
+        
+        /* 边缘展开方向控制 */
+        .weibo-enhance-panel.expand-left {
+            right: auto;
+            left: 20px;
+        }
+        
+        .weibo-enhance-panel.expand-right {
+            left: auto;
+            right: 20px;
         }
     `;
       // 应用宽屏样式 - 包含新版微博检测
@@ -705,8 +715,7 @@
             if (!widescreenStore.enabled) return;
             
             // 新版微博的样式已经包含在weiboWidescreenCSS中，这里只需要确保应用
-            console.log(`[微博宽屏] 应用新版微博${pageType}页面宽屏样式`);
-              // 通知用户
+            console.log(`[微博宽屏] 应用新版微博${pageType}页面宽屏样式`);              // 通知用户
             if (widescreenStore.notify_enabled) {
                 simpleNotify('新版微博宽屏模式已启用');
             }
@@ -815,12 +824,10 @@
         
         // 齿轮图标 (⚙️)
         const gearIcon = '<div class="panel-gear-icon">⚙️</div>';
-        
-        // 创建面板内容
+          // 创建面板内容
         let panelContent = `
             <div class="panel-content">
                 <h3>微博增强</h3>
-                <button class="panel-close-btn" aria-label="关闭">×</button>
                 
                 <div class="control-group">
                     <div class="control-title">宽屏功能</div>
@@ -853,7 +860,11 @@
                     </div>
                 </div>
                 
-                <button class="panel-toggle-btn">收起</button>
+                <div class="control-group">
+                    <div class="control-title">面板控制</div>
+                    <button class="panel-toggle-btn">收起面板</button>
+                    <button class="panel-close-btn">关闭面板</button>
+                </div>
             </div>
         `;
         
@@ -875,16 +886,19 @@
     function makeElementDraggable(element) {
         let offsetX = 0, offsetY = 0;
         let isDragging = false;
-        
-        // 鼠标按下开始拖动
+          // 鼠标按下开始拖动
         element.addEventListener('mousedown', function(e) {
             // 如果点击的是按钮或输入框，不触发拖动
             if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.tagName === 'LABEL') {
                 return;
             }
             
-            // 记录初始位置偏移
+            // 记录初始位置和偏移
             isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            hasMoved = false;
+            
             offsetX = e.clientX - element.getBoundingClientRect().left;
             offsetY = e.clientY - element.getBoundingClientRect().top;
             
@@ -892,10 +906,16 @@
             element.style.transition = 'none';
             element.style.cursor = 'grabbing';
         });
-        
-        // 鼠标移动更新位置
+          // 鼠标移动更新位置
         document.addEventListener('mousemove', function(e) {
             if (!isDragging) return;
+            
+            // 计算移动距离，判断是否真的在拖动
+            const moveX = Math.abs(e.clientX - startX);
+            const moveY = Math.abs(e.clientY - startY);
+            if (moveX > 3 || moveY > 3) {
+                hasMoved = true;  // 移动超过3像素才标记为移动
+            }
             
             // 计算新位置
             const left = e.clientX - offsetX;
@@ -917,14 +937,21 @@
             // 防止事件冒泡
             e.preventDefault();
         });
+          // 鼠标释放结束拖动        // 记录拖动的距离，用于判断是否是真正的拖动
+        let hasMoved = false;
+        let startX = 0, startY = 0;
         
-        // 鼠标释放结束拖动
-        document.addEventListener('mouseup', function() {
+        document.addEventListener('mouseup', function(e) {
             if (!isDragging) return;
             
             isDragging = false;
             element.style.cursor = 'move';
             element.style.transition = 'opacity 0.3s ease, transform 0.3s ease, background 0.3s ease';
+            
+            // 计算移动距离
+            const moveX = Math.abs(e.clientX - startX);
+            const moveY = Math.abs(e.clientY - startY);
+            hasMoved = (moveX > 5 || moveY > 5); // 移动超过5像素才算真正的拖动
             
             // 保存当前位置
             const rect = element.getBoundingClientRect();
@@ -933,6 +960,14 @@
                 right: (window.innerWidth - rect.right) + 'px'
             };
             saveWidescreenConfig();
+            
+            // 只有真正拖动过才添加拖动结束标记，时间改为100毫秒
+            if (hasMoved) {
+                element.classList.add('dragging-ended');
+                setTimeout(() => {
+                    element.classList.remove('dragging-ended');
+                }, 100); // 缩短为100毫秒
+            }
         });
         
         // 拖动超出窗口时，也要结束拖动
@@ -1041,19 +1076,30 @@
                 simpleNotify(widescreenStore.notify_enabled ? '通知已开启' : '通知已关闭');
             });
         }
-        
-        // 齿轮图标点击事件 - 展开面板
+          // 齿轮图标点击事件 - 展开面板        
         panel.addEventListener('click', (e) => {
             // 如果面板已折叠且点击的是面板(或齿轮图标)
             if (panel.classList.contains('collapsed')) {
-                togglePanelCollapse(panel, false); // 展开面板
+                // 检查是否点击了齿轮图标或面板本身（非其他控件）
+                const isGearIcon = e.target.classList.contains('panel-gear-icon');
+                const isPanelSelf = e.target === panel;
+                
+                // 只有点击齿轮图标或面板本身时才展开，避免干扰控件操作
+                if (isGearIcon || isPanelSelf) {
+                    // 如果不是刚拖动结束，才展开面板
+                    if (!panel.classList.contains('dragging-ended')) {
+                        togglePanelCollapse(panel, false); // 展开面板
+                    }
+                }
             }
         });
         
         // 收起按钮点击事件
         const toggleBtn = panel.querySelector('.panel-toggle-btn');
         if (toggleBtn) {
-            toggleBtn.addEventListener('click', () => {
+            toggleBtn.addEventListener('click', (e) => {
+                e.preventDefault(); // 防止事件冒泡
+                e.stopPropagation(); // 防止事件冒泡
                 togglePanelCollapse(panel, true); // 折叠面板
             });
         }
@@ -1071,16 +1117,43 @@
         }
     }
     
-    // 折叠/展开面板函数
+    // 折叠/展开面板函数    
     function togglePanelCollapse(panel, collapse) {
+        console.log(`切换面板状态: ${collapse ? '收起' : '展开'}`);
+        
         if (collapse) {
             panel.classList.add('collapsed');
             widescreenStore.panel_expanded = false;
+            console.log('面板已收起');
         } else {
+            // 判断面板位置，决定展开方向
+            const rect = panel.getBoundingClientRect();
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            const panelWidth = panel.offsetWidth;
+            const panelHeight = panel.offsetHeight;
+            
+            // 重置可能已有的方向类
+            panel.classList.remove('expand-left', 'expand-right');
+            
+            // 如果面板靠近右边缘，设置向左展开
+            if (rect.right > windowWidth - 100) {
+                panel.classList.add('expand-left');
+                console.log('面板向左展开');
+            } 
+            // 如果面板靠近左边缘，设置向右展开
+            else if (rect.left < 100) {
+                panel.classList.add('expand-right');
+                console.log('面板向右展开');
+            }
+            
             panel.classList.remove('collapsed');
             widescreenStore.panel_expanded = true;
+            console.log('面板已展开');
         }
-        saveWidescreenConfig();    }
+        
+        saveWidescreenConfig();
+    }
     
     // 注册菜单命令（简化版）    
     function registerMenus() {        
@@ -2033,7 +2106,7 @@
             
             if (!userOverride) {
                 const currentWebsiteMode = getCurrentWebsiteMode();
-                // 只有当当前模式与期望模式不同时才切换
+                // 只有当前模式与期望模式不同时才切换
                 if (currentWebsiteMode !== prefersDarkMode) {
                     isScriptOperation = true;
                     setWebsiteMode(prefersDarkMode);
