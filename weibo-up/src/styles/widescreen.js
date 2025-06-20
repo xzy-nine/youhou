@@ -153,9 +153,49 @@ export const weiboWidescreenCSS = `
 
 // 自定义额外的宽屏样式定义
 export const weiboWidescreenLooseCSS = `
-/* 用户自定义宽度设置 */
-.inject-widescreen-loose-js {
-  --inject-page-width: 95vw !important;
-  --inject-page-width-legacy: 95vw !important;
+/* 用户自定义宽度设置 - 更宽模式 */
+@media screen and (min-width: 1340px) {
+  :root.inject-widescreen-loose-js {
+    --inject-page-width: 95vw !important;
+  }
+  
+  body.inject-widescreen-loose-js {
+    --inject-page-width: 95vw !important;
+  }
+  
+  /* 更宽模式下的特殊调整 */
+  .inject-widescreen-loose-js [class*=Frame_content],
+  .inject-widescreen-loose-js [class*=Frame_content2] {
+    width: var(--inject-page-width) !important;
+    max-width: var(--inject-page-width) !important;
+  }
+  
+  /* 确保返回顶部按钮位置正确 */
+  .inject-widescreen-loose-js [class*=Index_backTop] {
+    left: calc(50% + var(--inject-page-width)/2 + 10px);
+  }
+}
+
+/* 旧版微博更宽模式 */
+@media screen and (min-width: 1300px) {
+  :root.inject-widescreen-loose-js {
+    --inject-page-width-legacy: 95vw !important;
+  }
+  
+  body.inject-widescreen-loose-js {
+    --inject-page-width-legacy: 95vw !important;
+  }
+  
+  .inject-widescreen-loose-js .WB_frame {
+    width: var(--inject-page-width-legacy) !important;
+  }
+  
+  .inject-widescreen-loose-js .W_gotop {
+    left: calc(50% + var(--inject-page-width-legacy)/2 + 10px);
+  }
+  
+  .inject-widescreen-loose-js .WB_timeline {
+    left: calc(50% + var(--inject-page-width-legacy)/2 + 20px);
+  }
 }
 `;

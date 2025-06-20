@@ -2,6 +2,7 @@
 import { widescreenStore, saveWidescreenConfig, saveThemeConfig } from '../utils/storage';
 import { getCurrentWebsiteMode, setWebsiteMode } from './theme';
 import { controlPanelCSS } from '../styles/controlPanel';
+import { simpleNotify } from '../utils/notification';
 
 // 创建统一控制面板
 export function createControlPanel() {
@@ -265,21 +266,23 @@ function bindControlEvents(panel) {
       saveWidescreenConfig();
       
       widescreenToggle.className = widescreenStore.enabled ? 'active' : '';
-      
-      // 更新按钮文本和指示器
+        // 更新按钮文本和指示器
       const indicator = widescreenToggle.querySelector('.status-indicator');
       if (indicator) {
         indicator.className = `status-indicator ${widescreenStore.enabled ? 'on' : 'off'}`;
       }
-      widescreenToggle.textContent = widescreenStore.enabled ? '已开启' : '已关闭';
       
-      // 如果有状态指示器，重新添加
+      // 保存指示器元素，清空按钮内容，重新添加指示器和文本
+      const newText = document.createTextNode(widescreenStore.enabled ? '已开启' : '已关闭');
+      
+      // 清空按钮内容并重新添加元素
+      widescreenToggle.innerHTML = '';
       if (indicator) {
-        widescreenToggle.insertBefore(indicator, widescreenToggle.firstChild);
+        widescreenToggle.appendChild(indicator.cloneNode(true));
       }
-      
-      // 显示通知
-      window.simpleNotify(widescreenStore.enabled ? '宽屏模式已启用，即将刷新页面' : '宽屏模式已关闭，即将刷新页面');
+      widescreenToggle.appendChild(newText);
+        // 显示通知
+      simpleNotify(widescreenStore.enabled ? '宽屏模式已启用，即将刷新页面' : '宽屏模式已关闭，即将刷新页面');
       
       // 延迟刷新页面，给用户时间看到通知
       setTimeout(() => {
@@ -288,7 +291,7 @@ function bindControlEvents(panel) {
       }, 500);
     });
   }
-    // 更宽模式
+  // 更宽模式
   const looseMode = panel.querySelector('#loose-mode');
   if (looseMode) {
     looseMode.addEventListener('change', (e) => {
@@ -297,9 +300,54 @@ function bindControlEvents(panel) {
       
       // 应用变更而不刷新页面
       document.documentElement.classList.toggle('inject-widescreen-loose-js', widescreenStore.loose);
-      
-      // 也更新document body以确保兼容性
       document.body.classList.toggle('inject-widescreen-loose-js', widescreenStore.loose);
+      
+      // 处理更宽模式的样式表
+      let looseStyleElement = document.getElementById('weibo-widescreen-loose-style');
+      if (widescreenStore.loose) {
+        if (!looseStyleElement) {
+          looseStyleElement = document.createElement('style');
+          looseStyleElement.id = 'weibo-widescreen-loose-style';
+          document.head.appendChild(looseStyleElement);
+          
+          // 从模块导入样式可能不直接可用，所以这里直接定义样式
+          looseStyleElement.textContent = `
+/* 用户自定义宽度设置 - 更宽模式 */
+:root.inject-widescreen-loose-js {
+  --inject-page-width: 95vw !important;
+  --inject-page-width-legacy: 95vw !important;
+}
+
+body.inject-widescreen-loose-js {
+  --inject-page-width: 95vw !important;
+  --inject-page-width-legacy: 95vw !important;
+}
+
+/* 更宽模式下的特殊调整 */
+.inject-widescreen-loose-js [class*=Frame_content],
+.inject-widescreen-loose-js [class*=Frame_content2] {
+  width: var(--inject-page-width) !important;
+  max-width: var(--inject-page-width) !important;
+}
+
+.inject-widescreen-loose-js .WB_frame {
+  width: var(--inject-page-width-legacy) !important;
+}
+
+/* 确保返回顶部按钮位置正确 */
+.inject-widescreen-loose-js [class*=Index_backTop] {
+  left: calc(50% + var(--inject-page-width)/2 + 10px);
+}
+
+.inject-widescreen-loose-js .W_gotop {
+  left: calc(50% + var(--inject-page-width-legacy)/2 + 10px);
+}`;
+        }
+      } else {
+        if (looseStyleElement) {
+          looseStyleElement.remove();
+        }
+      }
       
       // 更新iframe内容
       document.querySelectorAll('iframe').forEach(iframe => {
@@ -309,6 +357,20 @@ function bindControlEvents(panel) {
             iframeDoc.documentElement.classList.toggle('inject-widescreen-loose-js', widescreenStore.loose);
             if (iframeDoc.body) {
               iframeDoc.body.classList.toggle('inject-widescreen-loose-js', widescreenStore.loose);
+            }
+            
+            // 也更新iframe中的样式表
+            let iframeLooseStyle = iframeDoc.getElementById('weibo-widescreen-loose-style');
+            if (widescreenStore.loose) {
+              if (!iframeLooseStyle) {
+                iframeLooseStyle = iframeDoc.createElement('style');
+                iframeLooseStyle.id = 'weibo-widescreen-loose-style';
+                iframeDoc.head.appendChild(iframeLooseStyle);
+              }
+              // 复用主页面相同的样式
+              iframeLooseStyle.textContent = looseStyleElement ? looseStyleElement.textContent : '';
+            } else if (iframeLooseStyle) {
+              iframeLooseStyle.remove();
             }
           }
         } catch (e) {
@@ -325,7 +387,7 @@ function bindControlEvents(panel) {
       });
       document.dispatchEvent(event);
       
-      window.simpleNotify(`已切换为${widescreenStore.loose ? '更宽' : '标准'}宽屏模式`);
+      simpleNotify(`已切换为${widescreenStore.loose ? '更宽' : '标准'}宽屏模式`);
     });
   }// 主题切换
   const themeToggle = panel.querySelector('#theme-toggle');
@@ -356,7 +418,7 @@ function bindControlEvents(panel) {
         }
         
         // 发送通知
-        window.simpleNotify(newMode ? '已切换到深色模式' : '已切换到浅色模式');
+        simpleNotify(newMode ? '已切换到深色模式' : '已切换到浅色模式');
         
         // 刷新页面上的所有UI元素以反映新主题
         refreshUIWithTheme(newMode);
@@ -378,7 +440,7 @@ function bindControlEvents(panel) {
       
       if (success !== null) {
         // 发送通知
-        window.simpleNotify('已恢复跟随系统主题');
+        simpleNotify('已恢复跟随系统主题');
         
         // 更新状态指示器
         const themeToggle = panel.querySelector('#theme-toggle');
@@ -424,7 +486,7 @@ function bindControlEvents(panel) {
       saveWidescreenConfig();
       
       if (widescreenStore.notify_enabled) {
-        window.simpleNotify('通知已启用');
+        simpleNotify('通知已启用');
       } else {
         console.log('[微博增强] 通知已禁用');
       }
@@ -445,7 +507,7 @@ function bindControlEvents(panel) {
     toggleBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       togglePanelCollapse(panel, true);
-      window.simpleNotify('面板已收起，点击齿轮图标可重新展开');
+      simpleNotify('面板已收起，点击齿轮图标可重新展开');
     });
   }
   
@@ -457,7 +519,7 @@ function bindControlEvents(panel) {
       saveWidescreenConfig();
       
       panel.style.display = 'none';
-      window.simpleNotify('控制面板已关闭，可通过Tampermonkey菜单重新打开');
+      simpleNotify('控制面板已关闭，可通过Tampermonkey菜单重新打开');
     });
   }
 }
@@ -510,7 +572,7 @@ export function registerMenus() {
       createControlPanel();
     }
     
-    window.simpleNotify(widescreenStore.ui_visible ? '控制面板已显示' : '控制面板已隐藏');
+    simpleNotify(widescreenStore.ui_visible ? '控制面板已显示' : '控制面板已隐藏');
   });
   
   GM_registerMenuCommand('重置所有设置', function() {

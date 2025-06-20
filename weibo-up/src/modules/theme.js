@@ -1,5 +1,6 @@
 // 主题系统模块
 import { userOverride, saveThemeConfig } from '../utils/storage';
+import { simpleNotify } from '../utils/notification';
 
 // 状态跟踪变量
 let lastNotifiedMode = null;
@@ -7,15 +8,6 @@ let lastNotifiedOverrideState = null;
 let hasShownInitialNotification = false;
 let isScriptOperation = false;
 let observer = null;
-
-// 导出一个简单通知函数，以便其他模块使用
-export let simpleNotify;
-
-// 设置简单通知函数
-export function 
-setSimpleNotify(notifyFunction) {
-  simpleNotify = notifyFunction;
-}
 
 // 设置主题系统
 export function setupThemeSystem() {
@@ -57,9 +49,8 @@ export function setupThemeSystem() {
     if (oldSystemMode !== newDarkMode && !userOverride) {
       // 传递false表示这不是用户操作
       setWebsiteMode(newDarkMode, false);
-      
-      // 只有当模式真的改变时才通知
-      if (lastNotifiedMode !== newDarkMode && simpleNotify) {
+        // 只有当模式真的改变时才通知
+      if (lastNotifiedMode !== newDarkMode) {
         simpleNotify(`已切换到${newDarkMode ? '深色' : '浅色'}模式`);
         lastNotifiedMode = newDarkMode;
       }
@@ -198,11 +189,8 @@ export function setWebsiteMode(isDark, fromUserAction = false) {
     // 只有当不是用户操作时才重置isScriptOperation
     if (!fromUserAction) {
       isScriptOperation = false; // 确保在错误情况下也重置标记
-    }
-    console.error('[微博主题] 设置主题模式时出错:', error);
-    if (simpleNotify) {
-      simpleNotify('主题设置失败');
-    }
+    }    console.error('[微博主题] 设置主题模式时出错:', error);
+    simpleNotify('主题设置失败');
     return null;
   }
 }
@@ -479,9 +467,8 @@ function monitorLocalStorage() {
             localStorage.setItem('darkModeHistory', `[[${userId},${newMode ? 1 : 0}]]`);
             isScriptOperation = false;
           }
-          
-          // 只有当状态变化，或者是第一次通知时才显示
-          if ((lastNotifiedOverrideState !== true || lastNotifiedMode !== newMode || !hasShownInitialNotification) && simpleNotify) {
+            // 只有当状态变化，或者是第一次通知时才显示
+          if (lastNotifiedOverrideState !== true || lastNotifiedMode !== newMode || !hasShownInitialNotification) {
             simpleNotify(`已手动切换为${newMode ? '深色' : '浅色'}模式`);
             lastNotifiedMode = newMode;
             lastNotifiedOverrideState = true;
