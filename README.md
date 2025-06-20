@@ -17,9 +17,9 @@
 ## 脚本列表
 
 
-| 脚本名称 | 安装链接 | 功能描述 | 适用网站 |
-| -------- | ------ | -------- | -------- |
-| 微博增强 | [安装脚本](https://github.com/xzy-nine/youhou/raw/main/weibo-up.js) | 自动适应深色/浅色模式，评论悬浮窗，页面宽屏显示，支持扩展通知 | weibo.com |
+| 脚本名称 | 安装链接     | 功能描述                                                      | 适用网站  |
+| -------- | ------------ | ------------------------------------------------------------- | --------- |
+| 微博增强 | [安装脚本](https://gh-proxy.com/https://raw.githubusercontent.com/xzy-nine/youhou/main/weibo-up.js) | 自动适应深色/浅色模式，评论悬浮窗，页面宽屏显示，支持扩展通知 | weibo.com |
 
 ## 使用方法
 
@@ -28,20 +28,20 @@
    - Chrome: 安装 [Tampermonkey](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo)
    - Firefox: 安装 [Tampermonkey](https://addons.mozilla.org/en-US/firefox/addon/tampermonkey/) 或 [Greasemonkey](https://addons.mozilla.org/en-US/firefox/addon/greasemonkey/)
    - Edge: 安装 [Tampermonkey](https://microsoftedge.microsoft.com/addons/detail/tampermonkey/iikmkjmpaadaobahmlepeloendndfphd)
-
 2. **安装脚本**
 
    方法一：自动安装（推荐）
+
    - 点击上表中的"安装脚本"链接
    - 油猴脚本管理器会自动弹出安装界面
    - 点击"安装"或"确认安装"按钮完成安装
 
    方法二：手动安装
+
    - 点击对应的 `.js` 文件查看源码
    - 复制脚本内容
    - 在 Tampermonkey 管理界面创建新脚本
    - 粘贴代码并保存
-
 3. **使用脚本**
 
    - 访问对应的网站
