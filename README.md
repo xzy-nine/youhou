@@ -19,7 +19,7 @@
 
 | 脚本名称 | 安装链接     | 功能描述                                                      | 适用网站  |
 | -------- | ------------ | ------------------------------------------------------------- | --------- |
-| 微博增强 | [安装脚本](https://raw.githubusercontent.com/xzy-nine/youhou/main/weibo-up.js) | 自动适应深色/浅色模式，评论悬浮窗，页面宽屏显示，支持扩展通知 | weibo.com |
+| 微博增强 | [安装脚本](https://github.cmsz.dpdns.org/https://raw.githubusercontent.com/xzy-nine/youhou/main/weibo-up.js) | 自动适应深色/浅色模式，评论悬浮窗，页面宽屏显示，支持扩展通知 | weibo.com |
 
 ## 使用方法
 
