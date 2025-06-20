@@ -4,8 +4,49 @@ import { weiboWidescreenCSS, weiboWidescreenLooseCSS } from '../styles/widescree
 
 // 应用宽屏样式
 export function applyWidescreenStyles() {
-  if (!widescreenStore.enabled) return;
+  // 首先应用基本样式
+  applyBaseWidescreenStyles();
+  
+  // 监听宽屏模式开关，当切换时重新应用
+  document.addEventListener('widescreenChange', (event) => {
+    if (event.detail) {
+      console.log('[微博宽屏] 宽屏模式变化:', event.detail);
+      applyBaseWidescreenStyles(true);
+    }
+  });
+  
+  console.log('[微博宽屏] 宽屏功能初始化完成');
+}
 
+// 应用基本宽屏样式（不依赖Vue应用）
+function applyBaseWidescreenStyles(isUpdate = false) {
+  if (!widescreenStore.enabled) {
+    console.log('[微博宽屏] 宽屏功能未启用');
+    return;
+  }
+  
+  // 添加宽屏CSS
+  const styleId = 'weibo-widescreen-style';
+  let styleElement = document.getElementById(styleId);
+  
+  if (!styleElement) {
+    styleElement = document.createElement('style');
+    styleElement.id = styleId;
+    document.head.appendChild(styleElement);
+  }
+  
+  // 更新样式内容
+  styleElement.textContent = weiboWidescreenCSS;
+  
+  // 应用宽屏类
+  if (widescreenStore.loose) {
+    document.documentElement.classList.add('inject-widescreen-loose-js');
+    document.body.classList.add('inject-widescreen-loose-js');
+  } else {
+    document.documentElement.classList.remove('inject-widescreen-loose-js');
+    document.body.classList.remove('inject-widescreen-loose-js');
+  }
+  
   // 检测微博版本并应用相应的样式
   if (isNewWeiboVersion()) {
     setupNewWeiboStyles(getVueApp());
@@ -16,7 +57,10 @@ export function applyWidescreenStyles() {
   // 向iframe注入宽屏样式
   injectIframeStyles();
 
-  console.log('[微博宽屏] 宽屏功能已启用');
+  console.log('[微博宽屏] 宽屏样式已' + (isUpdate ? '更新' : '应用'));
+  
+  // 运行一段时间后，再次检查宽屏样式是否被正确应用
+  setTimeout(checkAndReapplyStyles, 2000);
 }
 
 // 检测是否是新版微博
@@ -299,55 +343,128 @@ function setupNewWeiboStyles(vueApp) {
 // 向iframe注入宽屏样式
 function injectIframeStyles() {
   // 监听iframe加载
-  document.addEventListener('load', function(e) {
+  const iframeLoadHandler = function(e) {
     if (e.target.tagName === 'IFRAME') {
       try {
-        const iframe = e.target;
-        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-        
-        // 检查iframe是否已有宽屏样式
-        if (iframeDoc && !iframeDoc.getElementById('widescreen-style') && widescreenStore.enabled) {
-          const style = iframeDoc.createElement('style');
-          style.id = 'widescreen-style';
-          style.textContent = weiboWidescreenCSS;
-          iframeDoc.head.appendChild(style);
-          
-          // 如果启用了更宽模式，也应用到iframe
-          if (widescreenStore.loose) {
-            const looseStyle = iframeDoc.createElement('style');
-            looseStyle.id = 'widescreen-loose-style';
-            looseStyle.textContent = weiboWidescreenLooseCSS;
-            iframeDoc.head.appendChild(looseStyle);
-          }
-        }
-      } catch (error) {
-        // 可能是跨域iframe，忽略错误
+        injectStyleToIframe(e.target);
+      } catch (err) {
+        console.log('[微博宽屏] 无法访问iframe内容（可能是跨域）:', err);
       }
     }
-  }, true);
+  };
   
-  // 定期检查并更新已存在的iframe
-  setInterval(() => {
-    const iframes = document.querySelectorAll('iframe');
-    iframes.forEach(iframe => {
+  // 添加全局事件监听
+  document.addEventListener('load', iframeLoadHandler, true);
+  
+  // 处理已存在的iframe
+  const existingIframes = document.querySelectorAll('iframe');
+  if (existingIframes.length > 0) {
+    console.log(`[微博宽屏] 处理${existingIframes.length}个已存在的iframe`);
+    existingIframes.forEach(iframe => {
       try {
-        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-        if (iframeDoc && !iframeDoc.getElementById('widescreen-style') && widescreenStore.enabled) {
-          const style = iframeDoc.createElement('style');
-          style.id = 'widescreen-style';
-          style.textContent = weiboWidescreenCSS;
-          iframeDoc.head.appendChild(style);
-          
-          if (widescreenStore.loose) {
-            const looseStyle = iframeDoc.createElement('style');
-            looseStyle.id = 'widescreen-loose-style';
-            looseStyle.textContent = weiboWidescreenLooseCSS;
-            iframeDoc.head.appendChild(looseStyle);
-          }
-        }
-      } catch (error) {
-        // 可能是跨域iframe，忽略错误
+        injectStyleToIframe(iframe);
+      } catch (err) {
+        // 跨域iframe无法访问，忽略错误
       }
     });
-  }, 2000);
+  }
+  
+  // 设置定期检查iframe
+  setInterval(() => {
+    document.querySelectorAll('iframe').forEach(iframe => {
+      try {
+        injectStyleToIframe(iframe);
+      } catch (err) {
+        // 忽略跨域错误
+      }
+    });
+  }, 3000);
+}
+
+// 向单个iframe注入样式
+function injectStyleToIframe(iframe) {
+  try {
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+    
+    if (!iframeDoc || !iframeDoc.head) return;
+    
+    // 检查是否已经注入样式
+    const styleId = 'weibo-widescreen-iframe-style';
+    let styleElement = iframeDoc.getElementById(styleId);
+    
+    if (!styleElement) {
+      styleElement = iframeDoc.createElement('style');
+      styleElement.id = styleId;
+      iframeDoc.head.appendChild(styleElement);
+    }
+    
+    // 更新样式内容
+    styleElement.textContent = weiboWidescreenCSS;
+    
+    // 同步宽屏状态到iframe
+    if (widescreenStore.loose) {
+      if (iframeDoc.documentElement) {
+        iframeDoc.documentElement.classList.add('inject-widescreen-loose-js');
+      }
+      if (iframeDoc.body) {
+        iframeDoc.body.classList.add('inject-widescreen-loose-js');
+      }
+    } else {
+      if (iframeDoc.documentElement) {
+        iframeDoc.documentElement.classList.remove('inject-widescreen-loose-js');
+      }
+      if (iframeDoc.body) {
+        iframeDoc.body.classList.remove('inject-widescreen-loose-js');
+      }
+    }
+    
+    // 检查iframe中是否有其他iframe，递归注入样式
+    const nestedIframes = iframeDoc.querySelectorAll('iframe');
+    if (nestedIframes.length > 0) {
+      nestedIframes.forEach(nestedIframe => {
+        try {
+          injectStyleToIframe(nestedIframe);
+        } catch (err) {
+          // 忽略跨域错误
+        }
+      });
+    }
+    
+    return true;
+  } catch (err) {
+    // 跨域iframe无法访问
+    return false;
+  }
+}
+
+// 检查宽屏样式并在需要时重新应用
+function checkAndReapplyStyles() {
+  if (!widescreenStore.enabled) return;
+  
+  // 检查宽屏样式是否被应用
+  const styleElement = document.getElementById('weibo-widescreen-style');
+  if (!styleElement || !styleElement.textContent) {
+    console.log('[微博宽屏] 检测到宽屏样式丢失，重新应用');
+    applyBaseWidescreenStyles(true);
+    return;
+  }
+  
+  // 检查宽屏类是否正确应用
+  const hasLooseClass = document.documentElement.classList.contains('inject-widescreen-loose-js');
+  if (widescreenStore.loose && !hasLooseClass) {
+    console.log('[微博宽屏] 更宽模式类丢失，重新应用');
+    document.documentElement.classList.add('inject-widescreen-loose-js');
+    document.body.classList.add('inject-widescreen-loose-js');
+  } else if (!widescreenStore.loose && hasLooseClass) {
+    console.log('[微博宽屏] 不需要更宽模式，移除相关类');
+    document.documentElement.classList.remove('inject-widescreen-loose-js');
+    document.body.classList.remove('inject-widescreen-loose-js');
+  }
+  
+  // 检查iframe样式
+  const iframes = document.querySelectorAll('iframe');
+  if (iframes.length > 0) {
+    console.log(`[微博宽屏] 检测到${iframes.length}个iframe，注入样式`);
+    injectIframeStyles();
+  }
 }

@@ -6,21 +6,25 @@ const UserscriptMetaDataPlugin = require('userscript-metadata-webpack-plugin');
 // 油猴脚本元数据
 const metadata = {
   name: '微博增强',
-  namespace: 'https://github.com/youhou',
-  version: '1.0.0',
-  description: '微博增强脚本 - 自动适应深色/浅色模式，评论悬浮窗，页面宽屏显示，支持扩展通知',
-  author: '',
+  namespace: 'http://tampermonkey.net/',
+  version: '1.0.2',
+  description: '微博增强功能：自动适应深色/浅色模式，评论悬浮窗，页面宽屏显示，支持扩展通知',
+  author: 'xzy-nine',
   match: [
-    '*://weibo.com/*',
-    '*://*.weibo.com/*'
+    'https://*.weibo.com/*'
   ],
   grant: [
     'GM_setValue',
     'GM_getValue',
+    'GM_deleteValue',
     'GM_registerMenuCommand',
-    'unsafeWindow'
+    'GM_addStyle'
   ],
-  run_at: 'document-start'
+  run_at: 'document-start',
+  updateURL: 'https://gh-proxy.com/https://raw.githubusercontent.com/xzy-nine/youhou/main/weibo-up.js',
+  downloadURL: 'https://gh-proxy.com/https://raw.githubusercontent.com/xzy-nine/youhou/main/weibo-up.js',
+  supportURL: 'https://github.com/xzy-nine/youhou/issues',
+  homepageURL: 'https://github.com/xzy-nine/youhou'
 };
 
 module.exports = {
