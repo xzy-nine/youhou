@@ -7,7 +7,6 @@ yarn-debug.log
 .pnp.js
 
 # Build output
-dist/
 build/
 
 # Environment files
