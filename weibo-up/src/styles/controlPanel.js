@@ -10,7 +10,7 @@ export const controlPanelCSS = `
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     padding: 16px;
-    min-width: 200px;
+    min-width: 240px; /* 增加宽度以确保所有控件有足够空间显示 */
     /* 添加过渡效果，使方向变化平滑 */
     transition: transform 0.3s ease, left 0.3s ease, right 0.3s ease;
     opacity: 0.9;
@@ -125,7 +125,10 @@ export const controlPanelCSS = `
 }
 
 .weibo-enhance-panel .control-group {
-    margin-bottom: 12px;
+    margin-bottom: 16px;
+    width: 100%;
+    overflow: visible; /* 确保子元素溢出不会被裁剪 */
+    display: block; /* 保证显示为块级元素 */
 }
 
 .weibo-enhance-panel .control-group:last-child {
@@ -188,6 +191,52 @@ export const controlPanelCSS = `
     margin: 0;
 }
 
+/* 滑块控件样式 */
+.weibo-enhance-panel .range-control {
+    margin-top: 8px;
+    width: 100%;
+}
+
+.weibo-enhance-panel .range-control label {
+    display: block;
+    font-size: 12px;
+    color: var(--panel-text, #333);
+    margin-bottom: 6px;
+}
+
+.weibo-enhance-panel .range-control input[type="range"] {
+    width: 100%;
+    height: 5px;
+    border-radius: 5px;
+    background: var(--panel-border, #e1e8ed);
+    outline: none;
+    opacity: 0.7;
+    -webkit-transition: opacity .2s;
+    transition: opacity .2s;
+}
+
+.weibo-enhance-panel .range-control input[type="range"]:hover {
+    opacity: 1;
+}
+
+.weibo-enhance-panel .range-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: var(--button-active-bg, #1890ff);
+    cursor: pointer;
+}
+
+.weibo-enhance-panel .range-control input[type="range"]::-moz-range-thumb {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: var(--button-active-bg, #1890ff);
+    cursor: pointer;
+}
+
 /* 深色模式样式 */
 body.woo-theme-dark .weibo-enhance-panel {
     --panel-bg: #2f3349;
@@ -248,5 +297,13 @@ body.woo-theme-light .weibo-enhance-panel {
 .weibo-enhance-panel.expand-right {
     left: auto;
     right: 20px;
+}
+
+/* 确保模糊控制组正确显示 */
+#blur-control-group {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    height: auto !important;
 }
 `;

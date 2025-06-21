@@ -5,6 +5,7 @@ import { setupThemeSystem } from './modules/theme';
 import { setupCommentSystem } from './modules/comments';
 import { createControlPanel, registerMenus } from './modules/ui';
 import { simpleNotify } from './utils/notification';
+import { applyGaussianBlurStyles } from './modules/gaussianBlur';
 
 // 主初始化函数
 function initialize() {
@@ -17,12 +18,20 @@ function initialize() {
   // 应用宽屏功能
   applyWidescreenStyles();
   
+  // 应用高斯模糊效果
+  setTimeout(() => {
+    applyGaussianBlurStyles();
+    console.log('[微博增强] 高斯模糊功能初始化完成');
+  }, 500);
+  
   // 创建控制面板
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', createControlPanel);
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(createControlPanel, 500);
+    });
   } else {
     // 延迟创建控制面板，确保主题系统初始化完成
-    setTimeout(createControlPanel, 300);
+    setTimeout(createControlPanel, 800);
   }
   
   // 启动成功日志

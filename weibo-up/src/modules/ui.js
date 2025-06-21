@@ -1,8 +1,9 @@
 // UI控制模块
-import { widescreenStore, saveWidescreenConfig, saveThemeConfig } from '../utils/storage';
+import { widescreenStore, blurStore, saveWidescreenConfig, saveThemeConfig, saveBlurConfig } from '../utils/storage';
 import { getCurrentWebsiteMode, setWebsiteMode } from './theme';
 import { controlPanelCSS } from '../styles/controlPanel';
 import { simpleNotify } from '../utils/notification';
+import { toggleGaussianBlur, setBlurIntensity } from './gaussianBlur';
 
 // 创建统一控制面板
 export function createControlPanel() {
@@ -55,14 +56,27 @@ export function createControlPanel() {
           </div>
         ` : ''}
       </div>
-      
-      <div class="control-group">
+        <div class="control-group">
         <div class="control-title">主题切换</div>
         <button id="theme-toggle">
           <span class="status-indicator ${getCurrentWebsiteMode() ? 'on' : 'off'}"></span>
           切换主题
         </button>
         <button id="theme-reset">重置跟随</button>
+      </div>
+      
+      <div class="control-group" id="blur-control-group">
+        <div class="control-title">高斯模糊效果</div>
+        <button id="blur-toggle" class="${blurStore.enabled ? 'active' : ''}">
+          <span class="status-indicator ${blurStore.enabled ? 'on' : 'off'}"></span>
+          ${blurStore.enabled ? '已开启' : '已关闭'}
+        </button>
+        ${blurStore.enabled ? `
+          <div class="range-control">
+            <label for="blur-intensity">模糊强度: ${blurStore.intensity}px</label>
+            <input type="range" id="blur-intensity" min="1" max="15" value="${blurStore.intensity}">
+          </div>
+        ` : ''}
       </div>
       
       <div class="control-group">
@@ -291,6 +305,85 @@ function bindControlEvents(panel) {
       }, 500);
     });
   }
+  
+  // 高斯模糊开关
+  const blurToggle = panel.querySelector('#blur-toggle');
+  if (blurToggle) {
+    blurToggle.addEventListener('click', () => {
+      const enabled = toggleGaussianBlur();
+      console.log('[微博增强] 高斯模糊状态切换为:', enabled ? '开启' : '关闭');
+      
+      blurToggle.className = enabled ? 'active' : '';
+      // 更新按钮文本和指示器
+      const indicator = blurToggle.querySelector('.status-indicator');
+      if (indicator) {
+        indicator.className = `status-indicator ${enabled ? 'on' : 'off'}`;
+      }
+      
+      // 保存指示器元素，清空按钮内容，重新添加指示器和文本
+      const newText = document.createTextNode(enabled ? '已开启' : '已关闭');
+      
+      // 清空按钮内容并重新添加元素
+      blurToggle.innerHTML = '';
+      if (indicator) {
+        blurToggle.appendChild(indicator.cloneNode(true));
+      }
+      blurToggle.appendChild(newText);
+      
+      // 更新面板 - 显示或隐藏模糊强度控制
+      const controlGroup = blurToggle.closest('.control-group');
+      if (controlGroup) {
+        // 移除现有的range控制（如果有）
+        const existingRange = controlGroup.querySelector('.range-control');
+        if (existingRange) {
+          existingRange.remove();
+        }
+        
+        // 如果启用了模糊，添加模糊强度控制
+        if (enabled) {
+          const rangeControl = document.createElement('div');
+          rangeControl.className = 'range-control';
+          rangeControl.innerHTML = `
+            <label for="blur-intensity">模糊强度: ${blurStore.intensity}px</label>
+            <input type="range" id="blur-intensity" min="1" max="15" value="${blurStore.intensity}">
+          `;
+          controlGroup.appendChild(rangeControl);
+          
+          // 为新创建的滑块添加事件
+          const intensitySlider = rangeControl.querySelector('#blur-intensity');
+          if (intensitySlider) {
+            intensitySlider.addEventListener('input', (e) => {
+              const newValue = parseInt(e.target.value, 10);
+              setBlurIntensity(newValue);
+              
+              // 更新标签显示
+              const label = rangeControl.querySelector('label');
+              if (label) {
+                label.textContent = `模糊强度: ${newValue}px`;
+              }
+            });
+          }
+        }
+      }
+      
+      simpleNotify(enabled ? '高斯模糊效果已启用' : '高斯模糊效果已关闭');
+    });
+  }
+  
+  // 初始化模糊强度滑块（如果存在）
+  const intensitySlider = panel.querySelector('#blur-intensity');
+  if (intensitySlider) {
+    intensitySlider.addEventListener('input', (e) => {
+      const newValue = parseInt(e.target.value, 10);
+      setBlurIntensity(newValue);
+      
+      // 更新标签显示
+      const label = e.target.parentElement.querySelector('label');
+      if (label) {
+        label.textContent = `模糊强度: ${newValue}px`;
+      }
+    });
+  }
   // 更宽模式
   const looseMode = panel.querySelector('#loose-mode');
   if (looseMode) {
@@ -389,91 +482,50 @@ body.inject-widescreen-loose-js {
       
       simpleNotify(`已切换为${widescreenStore.loose ? '更宽' : '标准'}宽屏模式`);
     });
-  }// 主题切换
+  }  // 主题切换
   const themeToggle = panel.querySelector('#theme-toggle');
   if (themeToggle) {
     themeToggle.addEventListener('click', () => {
+      // 获取当前模式
       const currentMode = getCurrentWebsiteMode();
       const newMode = !currentMode;
       
-      // 标记为用户手动覆盖
-      saveThemeConfig(true);
+      // 完全对应原始脚本的执行顺序
+      saveThemeConfig(true, newMode);
+      setWebsiteMode(newMode, true);
+      simpleNotify(newMode ? '已切换到深色模式' : '已切换到浅色模式');
       
-      // 设置网站模式，传递true表示这是用户操作
-      const success = setWebsiteMode(newMode, true);
-      
-      if (success !== null) {
-        // 更新状态指示器
-        const indicator = themeToggle.querySelector('.status-indicator');
-        if (indicator) {
-          // 立即更新按钮状态，给用户及时反馈
-          indicator.className = `status-indicator ${newMode ? 'on' : 'off'}`;
-          
-          // 但也设置一个延迟检查，以防主题切换有延迟
-          setTimeout(() => {
-            // 重新获取当前主题状态，确保显示正确
-            const updatedMode = getCurrentWebsiteMode();
-            indicator.className = `status-indicator ${updatedMode ? 'on' : 'off'}`;
-          }, 500);
-        }
-        
-        // 发送通知
-        simpleNotify(newMode ? '已切换到深色模式' : '已切换到浅色模式');
-        
-        // 刷新页面上的所有UI元素以反映新主题
-        refreshUIWithTheme(newMode);
+      // 更新状态指示器
+      const indicator = themeToggle.querySelector('.status-indicator');
+      if (indicator) {
+        setTimeout(() => {
+          const updatedMode = getCurrentWebsiteMode();
+          indicator.className = `status-indicator ${updatedMode ? 'on' : 'off'}`;
+        }, 300);
       }
     });
-  }  // 重置主题跟随
+  }
+  
+  // 重置主题跟随
   const themeReset = panel.querySelector('#theme-reset');
   if (themeReset) {
     themeReset.addEventListener('click', () => {
-      // 重置为跟随系统
-      saveThemeConfig(false);
+      // 重置为跟随系统模式 - 完全对应原始脚本的执行顺序
+      saveThemeConfig(false, null);
+      const systemIsDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setWebsiteMode(systemIsDark, true);
+      simpleNotify('已恢复跟随系统主题');
       
-      // 获取系统当前模式
-      const systemIsDark = GM_getValue('lastSystemMode', window.matchMedia('(prefers-color-scheme: dark)').matches);
-      
-      // 无论当前模式如何，都强制重新设置为系统模式
-      // 传递true表示这是用户操作
-      const success = setWebsiteMode(systemIsDark, true);
-      
-      if (success !== null) {
-        // 发送通知
-        simpleNotify('已恢复跟随系统主题');
-        
-        // 更新状态指示器
-        const themeToggle = panel.querySelector('#theme-toggle');
-        if (themeToggle) {
-          // 立即更新按钮状态，给用户及时反馈
+      // 更新状态指示器
+      const themeToggle = panel.querySelector('#theme-toggle');
+      if (themeToggle) {
+        setTimeout(() => {
+          const newMode = getCurrentWebsiteMode();
           const indicator = themeToggle.querySelector('.status-indicator');
           if (indicator) {
-            indicator.className = `status-indicator ${systemIsDark ? 'on' : 'off'}`;
-          } else {
-            themeToggle.innerHTML = `
-              <span class="status-indicator ${systemIsDark ? 'on' : 'off'}"></span>
-              切换主题
-            `;
+            indicator.className = `status-indicator ${newMode ? 'on' : 'off'}`;
           }
-          
-          // 延迟检查，确保显示正确
-          setTimeout(() => {
-            // 重新获取当前主题状态
-            const newMode = getCurrentWebsiteMode();
-            const indicator = themeToggle.querySelector('.status-indicator');
-            if (indicator) {
-              indicator.className = `status-indicator ${newMode ? 'on' : 'off'}`;
-            } else {
-              themeToggle.innerHTML = `
-                <span class="status-indicator ${newMode ? 'on' : 'off'}"></span>
-                切换主题
-              `;
-            }
-          }, 500);
-        }
-        
-        // 刷新UI以应用新主题
-        refreshUIWithTheme(systemIsDark);
+        }, 300);
       }
     });
   }
@@ -574,6 +626,19 @@ export function registerMenus() {
     
     simpleNotify(widescreenStore.ui_visible ? '控制面板已显示' : '控制面板已隐藏');
   });
+    GM_registerMenuCommand('高斯模糊效果', function() {
+    // 切换高斯模糊并重建控制面板
+    toggleGaussianBlur();
+    
+    // 更新控制面板
+    const panel = document.querySelector('.weibo-enhance-panel');
+    if (panel) {
+      panel.remove();
+      createControlPanel();
+    }
+    
+    simpleNotify(blurStore.enabled ? '高斯模糊效果已启用' : '高斯模糊效果已关闭');
+  });
   
   GM_registerMenuCommand('重置所有设置', function() {
     if (confirm('确定要重置所有设置吗？页面将会刷新。')) {
@@ -586,6 +651,10 @@ export function registerMenus() {
       GM_deleteValue('widescreen_panel_position');
       GM_deleteValue('userOverride');
       GM_deleteValue('lastSystemMode');
+      // 清除高斯模糊设置
+      GM_deleteValue('blur_enabled');
+      GM_deleteValue('blur_intensity');
+      GM_deleteValue('blur_notify_enabled');
       
       // 刷新页面
       window.location.reload();

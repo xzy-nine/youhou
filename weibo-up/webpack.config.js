@@ -6,9 +6,8 @@ const UserscriptMetaDataPlugin = require('userscript-metadata-webpack-plugin');
 // 油猴脚本元数据
 const metadata = {
   name: '微博增强',
-  namespace: 'http://tampermonkey.net/',
-  version: '1.0.3',
-  description: '微博增强功能：自动适应深色/浅色模式，弹出页查看更多评论，页面宽屏显示',
+  namespace: 'http://tampermonkey.net/',  version: '1.0.4',
+  description: '微博增强功能：自动适应深色/浅色模式，弹出页查看更多评论，页面宽屏显示，UI高斯模糊效果',
   author: 'xzy-nine',
   match: [
     'https://*.weibo.com/*'
