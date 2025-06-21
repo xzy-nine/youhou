@@ -18,7 +18,8 @@ export const backgroundStore = {
   opacity: GM_getValue('background_opacity', 0.2), // 背景透明度
   content_transparency: GM_getValue('background_content_transparency', true), // 是否启用内容半透明
   content_opacity: GM_getValue('background_content_opacity', 0.7), // 内容透明度，默认0.7
-  notify_enabled: GM_getValue('background_notify_enabled', true),
+  content_blur: GM_getValue('background_content_blur', 5), // 内容模糊度，默认5px
+  notify_enabled: GM_getValue('background_notify_enabled', true) // 是否启用背景相关通知
 };
 
 // 保存宽屏配置到GM存储
@@ -39,6 +40,7 @@ export function saveBackgroundConfig() {
   GM_setValue('background_opacity', backgroundStore.opacity);
   GM_setValue('background_content_transparency', backgroundStore.content_transparency);
   GM_setValue('background_content_opacity', backgroundStore.content_opacity);
+  GM_setValue('background_content_blur', backgroundStore.content_blur);
   GM_setValue('background_notify_enabled', backgroundStore.notify_enabled);
 }
 

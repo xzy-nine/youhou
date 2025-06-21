@@ -830,8 +830,8 @@ export async function uploadCustomBackground() {
     } catch (error) {
         console.error('[微博背景] 上传图片失败:', error);
         simpleNotify('上传图片失败，请尝试直接输入图片URL');
-        
-        // 如果出现错误，尝试URL输入作为备用        const imageUrl = await getImageUrlFromUser();
+          // 如果出现错误，尝试URL输入作为备用
+        const imageUrl = await getImageUrlFromUser();
         if (imageUrl) {
             backgroundStore.url = imageUrl;
             backgroundStore.type = 'custom';
@@ -1008,7 +1008,9 @@ function forceApplyContainerStyles() {
         document.querySelector('.Frame_content_3XrxZ'),
         document.querySelector('.Frame_side_2mgLd'),
         document.querySelector('.wbpro-side-main')
-    ];    // 应用半透明效果到微博内容容器
+    ];
+
+    // 应用半透明效果到微博内容容器
     if (backgroundStore.enabled && backgroundStore.content_transparency) {
         // 优先处理文章容器元素
         const articleSelectors = [
@@ -1028,24 +1030,23 @@ function forceApplyContainerStyles() {
         // 应用样式到文章元素
         articleElements.forEach(element => {
             if (element) {
-                // 检查当前主题
+                // 获取用户设置的模糊程度
+                const blurPixels = backgroundStore.content_blur || 5;
+                // 检测深色模式
                 const isDarkMode = document.documentElement.classList.contains('woo-theme-dark');
-                  // 根据主题和用户设置的透明度设置不同的背景色
-                const contentOpacity = backgroundStore.content_opacity;
-                const bgColor = isDarkMode ? 
-                    `rgba(30, 30, 30, ${contentOpacity})` : 
-                    `rgba(255, 255, 255, ${contentOpacity})`;
+                // 获取用户设置的背景不透明度
+                const opacity = backgroundStore.content_bg_opacity !== undefined ? backgroundStore.content_bg_opacity : 0.3;
+                // 使用轻微透明背景让模糊效果更明显
+                const bgColor = isDarkMode ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`;
                 
                 // 应用样式到文章容器
                 element.style.backgroundColor = bgColor;
-                element.style.backdropFilter = 'blur(5px)';
+                element.style.backdropFilter = `blur(${blurPixels}px)`;
                 element.style.borderRadius = '8px';
                 element.style.margin = '5px 0';
                 element.style.padding = '10px';
-                element.style.transition = 'background-color 0.3s ease';
-                element.style.boxShadow = isDarkMode ? 
-                    '0 2px 10px rgba(0, 0, 0, 0.2)' : 
-                    '0 2px 10px rgba(0, 0, 0, 0.05)';
+                element.style.transition = 'backdrop-filter 0.3s ease, background-color 0.3s ease';
+                element.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.2)';
                 
                 // 确保内部元素透明
                 const innerElements = element.querySelectorAll('.wbpro-feed-content, [class*="feed-content"], [class*="Feed_body"] > div');
@@ -1075,20 +1076,23 @@ function forceApplyContainerStyles() {
         
         // 应用样式到其他内容容器
         otherContentElements.forEach(element => {
-            if (element) {                const isDarkMode = document.documentElement.classList.contains('woo-theme-dark');
-                const contentOpacity = backgroundStore.content_opacity;
-                const bgColor = isDarkMode ? 
-                    `rgba(30, 30, 30, ${contentOpacity})` : 
-                    `rgba(255, 255, 255, ${contentOpacity})`;
+            if (element) {
+                // 获取用户设置的模糊程度
+                const blurPixels = backgroundStore.content_blur || 5;
+                // 检测深色模式
+                const isDarkMode = document.documentElement.classList.contains('woo-theme-dark');
+                // 获取用户设置的背景不透明度
+                const opacity = backgroundStore.content_bg_opacity !== undefined ? backgroundStore.content_bg_opacity : 0.3;
+                // 使用轻微透明背景让模糊效果更明显
+                const bgColor = isDarkMode ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`;
                 
                 element.style.backgroundColor = bgColor;
-                element.style.backdropFilter = 'blur(5px)';
+                element.style.backdropFilter = `blur(${blurPixels}px)`;
                 element.style.borderRadius = '8px';
                 element.style.margin = '5px';
                 element.style.padding = '10px';
-                element.style.boxShadow = isDarkMode ? 
-                    '0 2px 10px rgba(0, 0, 0, 0.2)' : 
-                    '0 2px 10px rgba(0, 0, 0, 0.05)';
+                element.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.2)';
+                element.style.transition = 'backdrop-filter 0.3s ease, background-color 0.3s ease';
             }
         });
         
@@ -1096,6 +1100,7 @@ function forceApplyContainerStyles() {
             console.log('[微博背景] 已应用半透明效果到微博容器');
         }
     }
+    
     // 应用样式到所有找到的容器上
     containers.forEach(container => {
         if (container) {
@@ -1192,13 +1197,14 @@ function setupBackgroundPersistence() {
     
     // 保存引用以便清除
     window.__weiboBackgroundCheckInterval = periodicCheck;
-    
-    // 创建一个MutationObserver来监听DOM变化
+      // 创建一个MutationObserver来监听DOM变化
     const observer = new MutationObserver((mutations) => {
         // 防抖动处理
         if (window.__weiboBackgroundDebounce) {
             clearTimeout(window.__weiboBackgroundDebounce);
-        }          window.__weiboBackgroundDebounce = setTimeout(() => {
+        }
+        
+        window.__weiboBackgroundDebounce = setTimeout(() => {
             // 检查背景功能状态
             if (!backgroundStore.enabled) {
                 const backgroundElement = document.getElementById('weibo-blur-background');
@@ -1261,7 +1267,7 @@ function addContentTransparencyStyles() {
         const existingStyle = document.getElementById(styleId);
         if (existingStyle) {
             existingStyle.remove();
-            console.log('[微博背景] 已移除微博内容半透明样式');
+            console.log('[微博背景] 已移除微博内容模糊样式');
         }
         return;
     }
@@ -1272,22 +1278,24 @@ function addContentTransparencyStyles() {
         style = document.createElement('style');
         style.id = styleId;
         document.head.appendChild(style);
-    }// 获取用户设置的内容透明度
-    const contentOpacity = backgroundStore.content_opacity;
-    // 计算深色模式的不透明度(保持相同透明度但使用深色背景)
-    const darkOpacity = contentOpacity;
+    }
     
-    // 使用用户配置的透明度动态生成CSS
+    // 获取用户设置的模糊度
+    const blurPixels = backgroundStore.content_blur || 5; // 默认值为5px
+    // 获取用户设置的不透明度，如果没有设置，使用默认值0.3
+    const bgOpacity = backgroundStore.content_bg_opacity !== undefined ? backgroundStore.content_bg_opacity : 0.3;
+    
+    // 使用用户配置的模糊度和不透明度动态生成CSS
     style.textContent = `
-        /* 微博Feed容器 - 整体article元素半透明 */
+        /* 默认浅色模式 - 微博Feed容器 - 整体article元素背景模糊 */
         #scroller > div.vue-recycle-scroller__item-wrapper > div > div > article,
         #scroller > div.vue-recycle-scroller__item-wrapper > div:nth-child(n) > div > article {
-            background-color: rgba(255, 255, 255, ${contentOpacity}) !important;
-            backdrop-filter: blur(5px) !important;
+            background-color: rgba(255, 255, 255, ${bgOpacity}) !important;
+            backdrop-filter: blur(${blurPixels}px) !important;
             border-radius: 8px !important;
             margin: 5px 0 !important;
             padding: 10px !important;
-            transition: background-color 0.3s ease, background-color 0.3s ease !important;
+            transition: backdrop-filter 0.3s ease, background-color 0.3s ease !important;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05) !important;
         }
         
@@ -1312,21 +1320,23 @@ function addContentTransparencyStyles() {
             box-shadow: none !important;
         }
         
-        /* 其他微博样式 */
+        /* 默认浅色模式 - 其他微博样式 */
         .wb-item .content,
         .card-wrap .card-feed {
-            background-color: rgba(255, 255, 255, ${contentOpacity}) !important;
-            backdrop-filter: blur(5px) !important;
+            background-color: rgba(255, 255, 255, ${bgOpacity}) !important;
+            backdrop-filter: blur(${blurPixels}px) !important;
             border-radius: 8px !important;
             margin: 5px !important;
             padding: 10px !important;
+            transition: backdrop-filter 0.3s ease, background-color 0.3s ease !important;
         }
-        
+          
         /* 深色模式适配 - 整体容器 */
         html.woo-theme-dark #scroller > div.vue-recycle-scroller__item-wrapper > div > div > article,
         html.woo-theme-dark #scroller > div.vue-recycle-scroller__item-wrapper > div:nth-child(n) > div > article {
-            background-color: rgba(30, 30, 30, ${darkOpacity}) !important;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
+            background-color: rgba(0, 0, 0, ${bgOpacity}) !important;
+            backdrop-filter: blur(${blurPixels}px) !important;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3) !important;
         }
         
         /* 深色模式适配 - 内部容器 */
@@ -1336,16 +1346,18 @@ function addContentTransparencyStyles() {
             background-color: transparent !important;
             box-shadow: none !important;
         }
-        
+          
         /* 深色模式适配 - 其他容器 */
         html.woo-theme-dark .wb-item .content,
         html.woo-theme-dark .card-wrap .card-feed {
-            background-color: rgba(30, 30, 30, ${darkOpacity}) !important;
+            background-color: rgba(0, 0, 0, ${bgOpacity}) !important;
+            backdrop-filter: blur(${blurPixels}px) !important;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
         }
     `;
-      // 样式已在前面添加到文档，这里不需要再添加
-    console.log('[微博背景] 已添加微博内容半透明样式');
+      
+    // 样式已在前面添加到文档，这里不需要再添加
+    console.log('[微博背景] 已添加微博内容半透明样式 - 模糊度:', blurPixels, 'px, 不透明度:', bgOpacity);
     
     // 使用MutationObserver监听新添加的内容并应用样式
     setupContentObserver();
@@ -1365,7 +1377,7 @@ function setupContentObserver() {
     if (!backgroundStore.enabled || !backgroundStore.content_transparency) {
         return;
     }
-    
+
     // 创建观察器
     const observer = new MutationObserver((mutations) => {
         let hasNewContent = false;
@@ -1383,29 +1395,31 @@ function setupContentObserver() {
                             
                             // 将样式直接应用到文章元素
                             articles.forEach(element => {
-                                // 获取当前主题和用户设置的透明度
+                                // 获取用户设置的模糊度
+                                const blurPixels = backgroundStore.content_blur || 5;
+                                // 检测深色模式
                                 const isDarkMode = document.documentElement.classList.contains('woo-theme-dark');
-                                const contentOpacity = backgroundStore.content_opacity;
-                                const bgColor = isDarkMode ? 
-                                    `rgba(30, 30, 30, ${contentOpacity})` : 
-                                    `rgba(255, 255, 255, ${contentOpacity})`;
+                                // 获取用户设置的背景不透明度
+                                const opacity = backgroundStore.content_bg_opacity !== undefined ? backgroundStore.content_bg_opacity : 0.3;
+                                // 根据深色/浅色模式使用不同的背景色
+                                const bgColor = isDarkMode ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`;
                                 
-                                // 首先尝试使用dataset检查是否已应用样式及透明度
+                                // 首先尝试使用dataset检查是否已应用样式及模糊度
+                                const currentBlur = element.dataset.appliedBlur;
                                 const currentOpacity = element.dataset.appliedOpacity;
                                 
-                                // 如果透明度值不同或未应用，则应用新样式
-                                if (!currentOpacity || parseFloat(currentOpacity) !== contentOpacity) {
-                                    console.log('[微博背景] 更新文章容器透明度:', contentOpacity);
+                                // 如果模糊度值或不透明度不同或未应用，则应用新样式
+                                if (!currentBlur || parseInt(currentBlur) !== blurPixels || 
+                                    !currentOpacity || parseFloat(currentOpacity) !== opacity) {
+                                    console.log('[微博背景] 更新文章容器样式 - 模糊度:', blurPixels, '不透明度:', opacity);
                                     // 应用内联样式到文章容器
                                     element.style.backgroundColor = bgColor;
-                                    element.style.backdropFilter = 'blur(5px)';
+                                    element.style.backdropFilter = `blur(${blurPixels}px)`;
                                     element.style.borderRadius = '8px';
                                     element.style.margin = '5px 0';
                                     element.style.padding = '10px';
-                                    element.style.transition = 'background-color 0.3s ease';
-                                    element.style.boxShadow = isDarkMode ? 
-                                        '0 2px 10px rgba(0, 0, 0, 0.2)' : 
-                                        '0 2px 10px rgba(0, 0, 0, 0.05)';
+                                    element.style.transition = 'backdrop-filter 0.3s ease, background-color 0.3s ease';
+                                    element.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.2)';
                                     
                                     // 确保内部内容容器是透明的
                                     const innerContents = element.querySelectorAll('.wbpro-feed-content, [class*="feed-content"], [class*="Feed_body"] > div');
@@ -1415,51 +1429,53 @@ function setupContentObserver() {
                                         inner.style.borderRadius = '0';
                                     });
                                     
-                                    // 标记已应用的透明度
-                                    element.dataset.appliedOpacity = contentOpacity.toString();
+                                    // 标记已应用的模糊度和不透明度
+                                    element.dataset.appliedBlur = blurPixels.toString();
+                                    element.dataset.appliedOpacity = opacity.toString();
                                 }
                             });
                         }
                         
                         // 查找其他类型的内容容器（针对旧版微博或其他页面）
-                        const otherContents = node.querySelectorAll('.wb-item .content, .card-wrap .card-feed');
-                        if (otherContents.length > 0) {
+                        const otherElements = node.querySelectorAll('.wb-item .content, .card-wrap .card-feed');
+                        if (otherElements.length > 0) {
                             hasNewContent = true;
-                        }
-                    }
-                        
-                        // 查找其他类型的内容容器（针对旧版微博或其他页面）
-                        const otherContents = node.querySelectorAll('.wb-item .content, .card-wrap .card-feed');
-                        if (otherContents.length > 0) {
-                            hasNewContent = true;
-                            // 将样式应用到其他内容容器                            
-                            otherContents.forEach(element => {
+                            // 将样式应用到其他内容容器
+                            otherElements.forEach(element => {
+                                // 获取用户设置的模糊度
+                                const blurPixels = backgroundStore.content_blur || 5;
+                                // 检测深色模式
                                 const isDarkMode = document.documentElement.classList.contains('woo-theme-dark');
-                                const contentOpacity = backgroundStore.content_opacity;
-                                const bgColor = isDarkMode ? 
-                                    `rgba(30, 30, 30, ${contentOpacity})` : 
-                                    `rgba(255, 255, 255, ${contentOpacity})`;
+                                // 获取用户设置的背景不透明度
+                                const opacity = backgroundStore.content_bg_opacity !== undefined ? backgroundStore.content_bg_opacity : 0.3;
+                                // 根据深色/浅色模式使用不同的背景色
+                                const bgColor = isDarkMode ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`;
                                 
                                 // 检查是否需要更新
+                                const currentBlur = element.dataset.appliedBlur;
                                 const currentOpacity = element.dataset.appliedOpacity;
-                                if (!currentOpacity || parseFloat(currentOpacity) !== contentOpacity) {
+                               
+                                if (!currentBlur || parseInt(currentBlur) !== blurPixels || 
+                                    !currentOpacity || parseFloat(currentOpacity) !== opacity) {
                                     element.style.backgroundColor = bgColor;
-                                    element.style.backdropFilter = 'blur(5px)';
+                                    element.style.backdropFilter = `blur(${blurPixels}px)`;
                                     element.style.borderRadius = '8px';
                                     element.style.margin = '5px';
                                     element.style.padding = '10px';
-                                    element.style.boxShadow = isDarkMode ? 
-                                        '0 2px 10px rgba(0, 0, 0, 0.2)' : 
-                                        '0 2px 10px rgba(0, 0, 0, 0.05)';
+                                    element.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.2)';
+                                    element.style.transition = 'backdrop-filter 0.3s ease, background-color 0.3s ease';
                                     
-                                    // 标记已应用的透明度
-                                    element.dataset.appliedOpacity = contentOpacity.toString();
+                                    // 标记已应用的模糊度和不透明度
+                                    element.dataset.appliedBlur = blurPixels.toString();
+                                    element.dataset.appliedOpacity = opacity.toString();
                                 }
                             });
                         }
                     }
                 }
-            }        
+            }
+        }
+        
         // 如果有新内容，重新应用容器样式
         if (hasNewContent) {
             console.log('[微博背景] 检测到新内容，重新应用容器样式');
@@ -1516,21 +1532,26 @@ function ensureContentTransparency() {
 ensureContentTransparency();
 
 /**
- * 设置内容的透明度
- * @param {number} opacity 透明度值，0-1之间
+ * 设置内容的模糊程度
+ * @param {number} blurValue 模糊值，0-1之间，将被转换为0-20px的模糊度
  * @returns {boolean} 是否设置成功
  */
-export function setContentOpacity(opacity) {
-    // 验证透明度值
-    if (typeof opacity !== 'number' || opacity < 0 || opacity > 1) {
-        console.error('[微博背景] 无效的内容透明度值:', opacity);
+export function setContentBlur(blurValue) {
+    // 验证模糊值，允许0-1的输入值（兼容旧版滑块范围）
+    if (typeof blurValue !== 'number' || blurValue < 0 || blurValue > 1) {
+        console.error('[微博背景] 无效的模糊度值:', blurValue);
         return false;
     }
     
-    // 更新存储的透明度值
-    backgroundStore.content_opacity = opacity;
+    // 将0-1的透明度值转换为0-20的模糊值
+    const blurPixels = Math.round(blurValue * 20);
+    
+    // 更新存储的模糊度值
+    backgroundStore.content_blur = blurPixels;
+    // 同时保持透明度值更新以保持兼容性
+    backgroundStore.content_opacity = blurValue;
     saveBackgroundConfig();
-    console.log(`[微博背景] 内容透明度已设置为: ${opacity}`);
+    console.log(`[微博背景] 内容模糊度已设置为: ${blurPixels}px (透明度值: ${blurValue})`);
     
     // 重新应用样式
     addContentTransparencyStyles();
@@ -1540,15 +1561,84 @@ export function setContentOpacity(opacity) {
         try {
             // 应用到所有文章元素
             const articles = document.querySelectorAll('article, #scroller > div.vue-recycle-scroller__item-wrapper > div > div > article');
+            // 检测深色模式
             const isDarkMode = document.documentElement.classList.contains('woo-theme-dark');
-            const bgColor = isDarkMode ? 
-                `rgba(30, 30, 30, ${opacity})` : 
-                `rgba(255, 255, 255, ${opacity})`;
+            // 获取用户设置的背景不透明度，如未设置则使用默认值
+            const opacity = backgroundStore.content_bg_opacity !== undefined ? backgroundStore.content_bg_opacity : 0.3;
+            // 根据深色/浅色模式使用不同的背景色
+            const bgColor = isDarkMode ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`;
+            const blurFilter = `blur(${blurPixels}px)`;
                 
             articles.forEach(element => {
                 if (element) {
+                    element.style.backdropFilter = blurFilter;
+                    element.dataset.appliedBlur = blurPixels.toString();
+                }
+            });
+            
+            // 应用到其他内容元素
+            const otherContents = document.querySelectorAll('.wb-item .content, .card-wrap .card-feed');
+            otherContents.forEach(element => {
+                if (element) {
+                    element.style.backdropFilter = blurFilter;
+                    element.dataset.appliedBlur = blurPixels.toString();
+                }
+            });
+            
+            console.log(`[微博背景] 已更新 ${articles.length + otherContents.length} 个元素的模糊度`);
+        } catch (error) {
+            console.error('[微博背景] 更新DOM元素模糊度时出错:', error);
+        }
+    }
+    
+    // 显示通知
+    if (blurPixels % 2 === 0) { // 只在偶数像素值时显示通知，避免过多通知
+        simpleNotify(`博文模糊度: ${blurPixels}px`);
+    }
+    
+    return true;
+}
+
+// 兼容原函数名称，防止旧代码调用出错
+export function setContentOpacity(blurValue) {
+    return setContentBlur(blurValue);
+}
+
+/**
+ * 设置内容背景的不透明度
+ * @param {number} opacityValue 不透明度值，0-1之间
+ * @returns {boolean} 是否设置成功
+ */
+export function setContentBgOpacity(opacityValue) {
+    // 验证不透明度值
+    if (typeof opacityValue !== 'number' || opacityValue < 0 || opacityValue > 1) {
+        console.error('[微博背景] 无效的不透明度值:', opacityValue);
+        return false;
+    }
+    
+    // 更新存储的不透明度值
+    backgroundStore.content_bg_opacity = opacityValue;
+    saveBackgroundConfig();
+    console.log(`[微博背景] 内容背景不透明度已设置为: ${opacityValue}`);
+    
+    // 重新应用样式
+    addContentTransparencyStyles();
+    
+    // 同时更新DOM中已存在的元素，确保实时生效
+    if (backgroundStore.enabled && backgroundStore.content_transparency) {
+        try {
+            // 检测深色模式
+            const isDarkMode = document.documentElement.classList.contains('woo-theme-dark');
+            // 根据深色/浅色模式使用不同的背景色
+            const bgColor = isDarkMode ? `rgba(0, 0, 0, ${opacityValue})` : `rgba(255, 255, 255, ${opacityValue})`;
+            const blurPixels = backgroundStore.content_blur || 5;
+            const blurFilter = `blur(${blurPixels}px)`;
+            
+            // 应用到所有文章元素
+            const articles = document.querySelectorAll('article, #scroller > div.vue-recycle-scroller__item-wrapper > div > div > article');
+            articles.forEach(element => {
+                if (element) {
                     element.style.backgroundColor = bgColor;
-                    element.dataset.appliedOpacity = opacity.toString();
                 }
             });
             
@@ -1557,15 +1647,36 @@ export function setContentOpacity(opacity) {
             otherContents.forEach(element => {
                 if (element) {
                     element.style.backgroundColor = bgColor;
-                    element.dataset.appliedOpacity = opacity.toString();
                 }
             });
             
-            console.log(`[微博背景] 已更新 ${articles.length + otherContents.length} 个元素的透明度`);
+            console.log(`[微博背景] 已更新 ${articles.length + otherContents.length} 个元素的背景不透明度`);
         } catch (error) {
-            console.error('[微博背景] 更新DOM元素透明度时出错:', error);
+            console.error('[微博背景] 更新DOM元素背景不透明度时出错:', error);
         }
     }
     
+    // 显示通知
+    if (Math.round(opacityValue * 100) % 10 === 0) { // 只在10%的倍数上显示通知
+        simpleNotify(`内容背景不透明度: ${Math.round(opacityValue * 100)}%`);
+    }
+    
     return true;
+}
+
+/**
+ * 切换内容透明度开关
+ * @returns {boolean} 新的状态
+ */
+export function toggleContentTransparency() {
+    backgroundStore.content_transparency = !backgroundStore.content_transparency;
+    saveBackgroundConfig();
+    
+    // 更新样式
+    addContentTransparencyStyles();
+    
+    // 显示通知
+    simpleNotify(`微博内容模糊效果已${backgroundStore.content_transparency ? '开启' : '关闭'}`);
+    
+    return backgroundStore.content_transparency;
 }
