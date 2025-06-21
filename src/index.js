@@ -1,5 +1,5 @@
 // 微博增强脚本主入口文件
-import { widescreenStore, saveWidescreenConfig } from './utils/storage';
+import { widescreenStore, saveWidescreenConfig, initStorage } from './utils/chrome-storage';
 import { applyWidescreenStyles } from './modules/widescreen';
 import { setupThemeSystem } from './modules/theme';
 import { setupCommentSystem } from './modules/comments';
@@ -8,10 +8,13 @@ import { simpleNotify } from './utils/notification';
 import { applyBackground } from './utils/background';
 
 // 主初始化函数
-function initialize() {
+async function initialize() {
+  // 首先初始化存储
+  await initStorage();
+
   // 设置主题系统（优先初始化主题）
   setupThemeSystem();
-    // 优先应用背景（如果启用）
+  // 优先应用背景（如果启用）
   // 这确保页面一开始就有背景，避免白屏
   applyBackground();
   console.log('[微博增强] 背景功能初始化完成');

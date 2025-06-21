@@ -1,12 +1,12 @@
 // UI控制模块
-import { widescreenStore, backgroundStore, saveWidescreenConfig, saveThemeConfig, saveBackgroundConfig } from '../utils/storage';
-import { getCurrentWebsiteMode, setWebsiteMode } from './theme';
-import { controlPanelCSS } from '../styles/controlPanel';
-import { simpleNotify } from '../utils/notification';
-import { toggleBackgroundEnabled, setBackgroundType, uploadCustomBackground, setBackgroundOpacity, setContentOpacity, clearBingImageCache, applyBackground } from '../utils/background';
+// widescreenStore, backgroundStore, saveWidescreenConfig, saveThemeConfig, saveBackgroundConfig 从chrome-storage.js全局获取
+// getCurrentWebsiteMode, setWebsiteMode 从theme.js全局获取
+// controlPanelCSS 从styles/controlPanel.js全局获取
+// simpleNotify 从notification.js全局获取
+// toggleBackgroundEnabled, setBackgroundType, uploadCustomBackground, setBackgroundOpacity, setContentOpacity, clearBingImageCache, applyBackground 从background.js全局获取
 
 // 创建统一控制面板
-export function createControlPanel() {
+function createControlPanel() {
   // 如果面板已存在，根据visible状态显示或隐藏
   const existingPanel = document.querySelector('.weibo-enhance-panel');
   if (existingPanel) {
@@ -845,7 +845,7 @@ function togglePanelCollapse(panel, collapse) {
 }
 
 // 注册菜单命令
-export function registerMenus() {
+function registerMenus() {
   GM_registerMenuCommand('显示/隐藏控制面板', function() {
     widescreenStore.ui_visible = !widescreenStore.ui_visible;
     saveWidescreenConfig();

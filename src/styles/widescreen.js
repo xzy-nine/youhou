@@ -1,5 +1,5 @@
 // 宽屏样式
-export const weiboWidescreenCSS = `
+const weiboWidescreenCSS = `
 /* 新版微博宽屏样式 */
 @media screen and (min-width: 1340px) {
     :root {
@@ -152,7 +152,7 @@ export const weiboWidescreenCSS = `
 }`;
 
 // 自定义额外的宽屏样式定义
-export const weiboWidescreenLooseCSS = `
+const weiboWidescreenLooseCSS = `
 /* 用户自定义宽度设置 - 更宽模式 */
 @media screen and (min-width: 1340px) {
   :root.inject-widescreen-loose-js {

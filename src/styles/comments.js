@@ -1,5 +1,5 @@
 // 评论悬浮窗样式
-export const commentModalCSS = `
+const commentModalCSS = `
 .comment-modal-overlay {
     position: fixed;
     top: 0;

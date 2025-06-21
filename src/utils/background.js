@@ -1,6 +1,6 @@
 // 背景图片管理功能
-import { backgroundStore, saveBackgroundConfig } from './storage';
-import { simpleNotify } from './notification';
+// backgroundStore, saveBackgroundConfig, chromeStorage 从chrome-storage.js全局获取
+// simpleNotify 从notification.js全局获取
 
 // 必应图片缓存键和过期时间（24小时）
 const BING_CACHE_KEY = 'weibo_bing_background';
@@ -14,9 +14,8 @@ async function fetchBingImage() {
     try {
         console.log('[微博背景] 尝试获取必应每日图片');
         simpleNotify('正在获取必应每日图片...');
-        
-        // 检查缓存
-        const cachedData = GM_getValue(BING_CACHE_KEY, null);
+          // 检查缓存
+        const cachedData = await chromeStorage.getValue(BING_CACHE_KEY, null);
         const now = Date.now();
 
         // 使用缓存内图片（如未过期）
@@ -188,9 +187,8 @@ async function fetchBingImage() {
         if (!checkImageSize) {
             throw new Error('获取到的必应图片尺寸过小或无法加载');
         }
-        
-        // 更新缓存
-        GM_setValue(BING_CACHE_KEY, {
+          // 更新缓存
+        await chromeStorage.setValue(BING_CACHE_KEY, {
             url: finalUrl,
             timestamp: now
         });
@@ -428,7 +426,7 @@ function createFileSelector() {
  * 根据当前设置获取背景图片URL
  * @returns {Promise<string|null>} 背景图片URL或null
  */
-export async function getBackgroundUrl() {
+async function getBackgroundUrl() {
     // 如果未启用背景，返回null
     if (!backgroundStore.enabled) {
         return null;
@@ -458,7 +456,7 @@ export async function getBackgroundUrl() {
  * 设置背景类型
  * @param {'bing'|'custom'} type 背景类型
  */
-export function setBackgroundType(type) {
+function setBackgroundType(type) {
     console.log('[微博背景] 设置背景类型为:', type);
     
     // 验证类型是否有效
@@ -539,7 +537,7 @@ export function setBackgroundType(type) {
  * 设置背景不透明度
  * @param {number} opacity 不透明度 (0-1)
  */
-export function setBackgroundOpacity(opacity) {
+function setBackgroundOpacity(opacity) {
     try {
         // 确保值在0-1范围内
         const newOpacity = Math.max(0, Math.min(1, opacity));
@@ -660,7 +658,7 @@ export function setBackgroundOpacity(opacity) {
  * 切换背景启用状态
  * @returns {boolean} 新的启用状态
  */
-export function toggleBackgroundEnabled() {
+function toggleBackgroundEnabled() {
     backgroundStore.enabled = !backgroundStore.enabled;
     saveBackgroundConfig();
     applyBackground();
@@ -672,10 +670,10 @@ export function toggleBackgroundEnabled() {
  * 用于强制刷新背景图片，解决图片过期或加载问题
  * @returns {boolean} 是否成功清除缓存
  */
-export function clearBingImageCache() {
+async function clearBingImageCache() {
     try {
         console.log('[微博背景] 正在清除必应图片缓存');
-        GM_setValue(BING_CACHE_KEY, null);
+        await chromeStorage.setValue(BING_CACHE_KEY, null);
         simpleNotify('已清除背景图片缓存，将重新获取最新图片');
           // 自动重新应用背景，使用新图片
         setTimeout(() => {
@@ -742,7 +740,7 @@ function getImageUrlFromUser() {
  * 上传自定义背景图片
  * @returns {Promise<boolean>}
  */
-export async function uploadCustomBackground() {
+async function uploadCustomBackground() {
     try {
         simpleNotify('正在打开图片选择器...');
         
@@ -859,7 +857,7 @@ export async function uploadCustomBackground() {
 /**
  * 应用背景图片
  */
-export async function applyBackground() {
+async function applyBackground() {
     console.log('[微博背景] 开始应用背景图片...');    try {        // 移除旧背景
         let bgElement = document.getElementById('weibo-blur-background');
         if (bgElement) {
@@ -963,9 +961,8 @@ export async function applyBackground() {
               // 确保背景色可见
             bgElement.style.backgroundImage = 'none';
             bgElement.style.backgroundColor = 'rgba(173, 216, 230, 0.3)';
-            
-            // 清理缓存，避免重复使用失败的URL
-            GM_setValue(BING_CACHE_KEY, null);
+              // 清理缓存，避免重复使用失败的URL
+            chromeStorage.setValue(BING_CACHE_KEY, null);
             
             // 记录加载失败
             console.log('[微博背景] 使用淡蓝色背景作为回退');
@@ -1536,7 +1533,7 @@ ensureContentTransparency();
  * @param {number} blurValue 模糊值，0-1之间，将被转换为0-20px的模糊度
  * @returns {boolean} 是否设置成功
  */
-export function setContentBlur(blurValue) {
+function setContentBlur(blurValue) {
     // 验证模糊值，允许0-1的输入值（兼容旧版滑块范围）
     if (typeof blurValue !== 'number' || blurValue < 0 || blurValue > 1) {
         console.error('[微博背景] 无效的模糊度值:', blurValue);
@@ -1600,7 +1597,7 @@ export function setContentBlur(blurValue) {
 }
 
 // 兼容原函数名称，防止旧代码调用出错
-export function setContentOpacity(blurValue) {
+function setContentOpacity(blurValue) {
     return setContentBlur(blurValue);
 }
 
@@ -1609,7 +1606,7 @@ export function setContentOpacity(blurValue) {
  * @param {number} opacityValue 不透明度值，0-1之间
  * @returns {boolean} 是否设置成功
  */
-export function setContentBgOpacity(opacityValue) {
+function setContentBgOpacity(opacityValue) {
     // 验证不透明度值
     if (typeof opacityValue !== 'number' || opacityValue < 0 || opacityValue > 1) {
         console.error('[微博背景] 无效的不透明度值:', opacityValue);
@@ -1668,7 +1665,7 @@ export function setContentBgOpacity(opacityValue) {
  * 切换内容透明度开关
  * @returns {boolean} 新的状态
  */
-export function toggleContentTransparency() {
+function toggleContentTransparency() {
     backgroundStore.content_transparency = !backgroundStore.content_transparency;
     saveBackgroundConfig();
     

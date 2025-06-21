@@ -1,15 +1,6 @@
-// 微博增强Chrome扩展内容脚本 - 复用油猴模块
+// 微博增强Chrome扩展内容脚本 - 直接使用src模块
+// 注意：所有依赖已在manifest.json中按顺序加载，无需导入
 
-// 从chrome-utils.js导入工具函数
-import { addCustomStyle, simpleNotify } from './chrome-utils.js';
-// 从chrome-storage.js导入存储功能
-import { initStorage, widescreenStore } from './chrome-storage.js';
-// 从src模块导入功能
-import { applyWidescreenStyles } from './src/modules/widescreen.js';
-import { setupThemeSystem } from './src/modules/theme.js';
-import { setupCommentSystem } from './src/modules/comments.js';
-import { createControlPanel } from './src/modules/ui.js';
-import { applyBackground } from './src/utils/background.js';
 
 // 主初始化函数
 async function initialize() {

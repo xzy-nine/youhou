@@ -1,8 +1,8 @@
 // 通知功能
-import { widescreenStore } from './storage';
+// widescreenStore 从chrome-storage.js全局获取
 
 // 简单通知函数（全局可访问）
-export function simpleNotify(message) {
+function simpleNotify(message) {
   if (!widescreenStore.notify_enabled) return;
   
   console.log(`%c[微博增强] ${message}`, 'color: #1890ff; font-weight: bold;');

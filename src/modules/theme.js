@@ -1,6 +1,6 @@
 // 主题系统模块
-import { userOverride, saveThemeConfig } from '../utils/storage';
-import { simpleNotify } from '../utils/notification';
+// userOverride, userThemeMode, saveThemeConfig, chromeStorage 从chrome-storage.js全局获取
+// simpleNotify 从notification.js全局获取
 
 // 状态跟踪变量
 let lastNotifiedMode = null;
@@ -10,15 +10,11 @@ let isScriptOperation = false;
 let observer = null;
 
 // 设置主题系统
-export function setupThemeSystem() {
-  // 检查系统颜色模式
+function setupThemeSystem() {// 检查系统颜色模式
   const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
   
   // 保存最后一次系统模式
-  GM_setValue('lastSystemMode', prefersDarkMode);
-  
-  // 读取用户上次选择的主题模式
-  const userThemeMode = GM_getValue('userThemeMode', null);
+  chromeStorage.setValue('lastSystemMode', prefersDarkMode);
   
   // 延迟主题初始化，确保页面完全加载
   setTimeout(() => {
@@ -77,7 +73,7 @@ export function setupThemeSystem() {
 }
 
 // 获取当前网站的模式
-export function getCurrentWebsiteMode() {
+function getCurrentWebsiteMode() {
   try {
     const darkModeHistory = localStorage.getItem('darkModeHistory');
     if (darkModeHistory) {
@@ -98,7 +94,7 @@ export function getCurrentWebsiteMode() {
 }
 
 // 设置网站模式 - 与原始版本保持一致的简化实现
-export function setWebsiteMode(isDark, fromUserAction = false) {
+function setWebsiteMode(isDark, fromUserAction = false) {
   try {
     // 标记为脚本操作，防止触发我们自己的监听器
     isScriptOperation = true;

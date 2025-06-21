@@ -1,10 +1,10 @@
 // 宽屏功能模块
-import { widescreenStore } from '../utils/storage';
-import { weiboWidescreenCSS, weiboWidescreenLooseCSS } from '../styles/widescreen';
-import { simpleNotify } from '../utils/notification';
+// widescreenStore 从chrome-storage.js全局获取
+// weiboWidescreenCSS, weiboWidescreenLooseCSS 从styles/widescreen.js全局获取
+// simpleNotify 从notification.js全局获取
 
 // 应用宽屏样式
-export function applyWidescreenStyles() {
+function applyWidescreenStyles() {
   // 首先应用基本样式
   applyBaseWidescreenStyles();
   

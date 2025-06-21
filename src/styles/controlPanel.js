@@ -1,5 +1,5 @@
 // 控制面板CSS样式
-export const controlPanelCSS = `
+const controlPanelCSS = `
 .weibo-enhance-panel {
     position: fixed;
     top: 50%;

@@ -20,11 +20,23 @@
   "permissions": [
     "storage",
     "tabs"
-  ],
-  "content_scripts": [
+  ],  "content_scripts": [
     {
       "matches": ["https://*.weibo.com/*"],
-      "js": ["content.js"],
+      "js": [
+        "src/utils/chrome-storage.js",
+        "src/utils/notification.js",
+        "src/utils/background.js",
+        "src/styles/comments.js",
+        "src/styles/controlPanel.js",
+        "src/styles/widescreen.js",
+        "src/modules/comments.js",
+        "src/modules/theme.js", 
+        "src/modules/ui.js",
+        "src/modules/widescreen.js",
+        "chrome-utils.js",
+        "content.js"
+      ],
       "run_at": "document_start"
     }
   ],

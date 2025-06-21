@@ -1,11 +1,11 @@
 // 评论系统模块
-import { widescreenStore } from '../utils/storage';
-import { commentModalCSS } from '../styles/comments';
-import { getCurrentWebsiteMode } from './theme';
-import { weiboWidescreenCSS } from '../styles/widescreen';
+// widescreenStore 从chrome-storage.js全局获取
+// commentModalCSS 从styles/comments.js全局获取
+// getCurrentWebsiteMode 从theme.js全局获取
+// weiboWidescreenCSS 从styles/widescreen.js全局获取
 
 // 设置评论系统
-export function setupCommentSystem() {
+function setupCommentSystem() {
   // 添加评论悬浮窗样式
   addCommentModalStyles();
   
