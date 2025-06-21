@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "微博增强",
-  "version": "1.0.4",
+  "name": "weibo-pro",
+  "version": "1.0.5",
   "description": "微博增强功能：自动适应深色/浅色模式，弹出页查看更多评论，页面宽屏显示，自定义背景图片",
   "author": "xzy-nine",
   "icons": {
