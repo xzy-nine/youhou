@@ -5,12 +5,6 @@ dist/
 .idea/
 *.log
 
-# 微博增强Chrome扩展不需要的文件
-webpack.config.js
-package-lock.json
-yarn.lock
-install.bat
-install.sh
 
 # 打包文件
 *.zip
