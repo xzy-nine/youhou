@@ -5,17 +5,16 @@ import { setupThemeSystem } from './modules/theme';
 import { setupCommentSystem } from './modules/comments';
 import { createControlPanel, registerMenus } from './modules/ui';
 import { simpleNotify } from './utils/notification';
-import { applyGaussianBlurStyles } from './modules/gaussianBlur';
+import { applyBackground } from './utils/background';
 
 // 主初始化函数
 function initialize() {
   // 设置主题系统（优先初始化主题）
   setupThemeSystem();
-  
-  // 优先应用高斯模糊效果和背景（如果启用）
+    // 优先应用背景（如果启用）
   // 这确保页面一开始就有背景，避免白屏
-  applyGaussianBlurStyles();
-  console.log('[微博增强] 高斯模糊功能初始化完成');
+  applyBackground();
+  console.log('[微博增强] 背景功能初始化完成');
   
   // 添加评论悬浮窗样式和功能
   setupCommentSystem();
@@ -32,22 +31,22 @@ function initialize() {
     // 延迟创建控制面板，确保主题系统初始化完成
     setTimeout(createControlPanel, 500);
   }
-  
-  // 在页面加载完成后再次应用背景，确保在所有DOM元素加载后背景依然存在
-  window.addEventListener('load', () => {
-    // 重新应用高斯模糊和背景
+    // 在页面加载完成后再次应用背景，确保在所有DOM元素加载后背景依然存在
+  window.addEventListener('load', () => {    // 重新应用背景
     setTimeout(() => {
-      applyGaussianBlurStyles();
+      applyBackground();
     }, 1000);
     
     // 显示通知
     if (widescreenStore.notify_enabled) {
       simpleNotify('微博增强功能已激活');
     }
-  });
-  
+  });  
   // 启动成功日志
   console.log('%c[微博增强] 功能已激活', 'color: #28a745; font-weight: bold;');
+    // 将重新应用背景函数暴露到全局，方便用户手动调用
+  window.weiboApplyBackground = applyBackground;
+  console.log('%c[微博增强] 如果背景出现问题，请在控制台执行: weiboApplyBackground()', 'color: #17a2b8; font-style: italic;');
 }
 
 // 注册菜单命令并初始化

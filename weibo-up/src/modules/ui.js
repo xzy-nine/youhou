@@ -1,10 +1,9 @@
 // UI控制模块
-import { widescreenStore, blurStore, saveWidescreenConfig, saveThemeConfig, saveBlurConfig } from '../utils/storage';
+import { widescreenStore, backgroundStore, saveWidescreenConfig, saveThemeConfig, saveBackgroundConfig } from '../utils/storage';
 import { getCurrentWebsiteMode, setWebsiteMode } from './theme';
 import { controlPanelCSS } from '../styles/controlPanel';
 import { simpleNotify } from '../utils/notification';
-import { toggleGaussianBlur, setBlurIntensity, applyGaussianBlurStyles } from './gaussianBlur';
-import { toggleBackgroundEnabled, setBackgroundType, uploadCustomBackground, setBackgroundOpacity, clearBingImageCache, applyBackground } from '../utils/background';
+import { toggleBackgroundEnabled, setBackgroundType, uploadCustomBackground, setBackgroundOpacity, setContentOpacity, clearBingImageCache, applyBackground } from '../utils/background';
 
 // 创建统一控制面板
 export function createControlPanel() {
@@ -63,45 +62,39 @@ export function createControlPanel() {
           <span class="status-indicator ${getCurrentWebsiteMode() ? 'on' : 'off'}"></span>
           切换主题
         </button>
-        <button id="theme-reset">重置跟随</button>
-      </div>      <div class="control-group" id="blur-control-group">
-        <div class="control-title">高斯模糊效果</div>
-        <button id="blur-toggle" class="${blurStore.enabled ? 'active' : ''}">
-          <span class="status-indicator ${blurStore.enabled ? 'on' : 'off'}"></span>
-          ${blurStore.enabled ? '已开启' : '已关闭'}
+        <button id="theme-reset">重置跟随</button>      </div>
+        <div class="control-group" id="background-control-group">
+        <div class="control-title">背景设置</div>
+        <button id="background-toggle" class="${backgroundStore.enabled ? 'active' : ''}">
+          <span class="status-indicator ${backgroundStore.enabled ? 'on' : 'off'}"></span>
+          ${backgroundStore.enabled ? '已开启' : '已关闭'}
         </button>
-        ${blurStore.enabled ? `
-          <div class="range-control">
-            <label for="blur-intensity">模糊强度: ${blurStore.intensity}px</label>
-            <input type="range" id="blur-intensity" min="1" max="15" value="${blurStore.intensity}">
+        ${backgroundStore.enabled ? `
+          <div class="radio-control">
+            <input type="radio" id="bing-background" name="background-type" ${backgroundStore.type === 'bing' ? 'checked' : ''}>
+            <label for="bing-background">必应每日图片</label>
+            
+            <input type="radio" id="custom-background" name="background-type" ${backgroundStore.type === 'custom' ? 'checked' : ''}>
+            <label for="custom-background">自定义图片</label>
           </div>
           
-          <div class="sub-control-group">
-            <div class="sub-control-title">背景设置</div>
-            <div class="checkbox-control">
-              <input type="checkbox" id="background-toggle" ${blurStore.background_enabled ? 'checked' : ''}>
-              <label for="background-toggle">启用背景图</label>
-            </div>
-            
-            ${blurStore.background_enabled ? `
-              <div class="radio-control">
-                <input type="radio" id="bing-background" name="background-type" ${blurStore.background_type === 'bing' ? 'checked' : ''}>
-                <label for="bing-background">必应每日图片</label>
-                
-                <input type="radio" id="custom-background" name="background-type" ${blurStore.background_type === 'custom' ? 'checked' : ''}>
-                <label for="custom-background">自定义图片</label>
-              </div>
-              
-              ${blurStore.background_type === 'custom' ? `
-                <button id="upload-background" class="small-button">上传图片</button>
-              ` : ''}
-              
-              <div class="range-control">
-                <label for="background-opacity">背景不透明度: ${Math.round(blurStore.background_opacity * 100)}%</label>
-                <input type="range" id="background-opacity" min="1" max="100" value="${Math.round(blurStore.background_opacity * 100)}">
-              </div>
-            ` : ''}
+          ${backgroundStore.type === 'custom' ? `
+            <button id="upload-background" class="small-button">上传图片</button>
+          ` : ''}
+            <div class="range-control">
+            <label for="background-opacity">背景不透明度: ${Math.round(backgroundStore.opacity * 100)}%</label>
+            <input type="range" id="background-opacity" min="1" max="100" value="${Math.round(backgroundStore.opacity * 100)}">          </div>
+            <div class="checkbox-control" id="content-transparency-container">
+            <input type="checkbox" id="content-transparency-toggle" ${backgroundStore.content_transparency ? 'checked' : ''}>
+            <label for="content-transparency-toggle">微博内容半透明</label>
           </div>
+          
+          ${backgroundStore.content_transparency ? `
+          <div class="range-control" id="content-opacity-container">
+            <label for="content-opacity">内容不透明度: ${Math.round(backgroundStore.content_opacity * 100)}%</label>
+            <input type="range" id="content-opacity" min="20" max="95" value="${Math.round(backgroundStore.content_opacity * 100)}">
+          </div>
+          ` : ''}
         ` : ''}
       </div>
       
@@ -330,18 +323,17 @@ function bindControlEvents(panel) {
         window.location.reload();
       }, 500);
     });
-  }
-  
-  // 高斯模糊开关
-  const blurToggle = panel.querySelector('#blur-toggle');
-  if (blurToggle) {
-    blurToggle.addEventListener('click', () => {
-      const enabled = toggleGaussianBlur();
-      console.log('[微博增强] 高斯模糊状态切换为:', enabled ? '开启' : '关闭');
+  }  
+  // 背景开关
+  const backgroundToggle = panel.querySelector('#background-toggle');
+  if (backgroundToggle) {
+    backgroundToggle.addEventListener('click', () => {
+      const enabled = toggleBackgroundEnabled();
+      console.log('[微博增强] 背景状态切换为:', enabled ? '开启' : '关闭');
       
-      blurToggle.className = enabled ? 'active' : '';
+      backgroundToggle.className = enabled ? 'active' : '';
       // 更新按钮文本和指示器
-      const indicator = blurToggle.querySelector('.status-indicator');
+      const indicator = backgroundToggle.querySelector('.status-indicator');
       if (indicator) {
         indicator.className = `status-indicator ${enabled ? 'on' : 'off'}`;
       }
@@ -350,99 +342,79 @@ function bindControlEvents(panel) {
       const newText = document.createTextNode(enabled ? '已开启' : '已关闭');
       
       // 清空按钮内容并重新添加元素
-      blurToggle.innerHTML = '';
+      backgroundToggle.innerHTML = '';
       if (indicator) {
-        blurToggle.appendChild(indicator.cloneNode(true));
+        backgroundToggle.appendChild(indicator.cloneNode(true));
       }
-      blurToggle.appendChild(newText);
-        // 更新面板 - 显示或隐藏模糊控制选项
-      const controlGroup = blurToggle.closest('.control-group');
+      backgroundToggle.appendChild(newText);
+      
+      // 更新面板 - 显示或隐藏背景控制选项
+      const controlGroup = backgroundToggle.closest('.control-group');
       if (controlGroup) {
         // 清空现有控制选项
-        const existingControls = controlGroup.querySelectorAll('.range-control, .sub-control-group');
+        const existingControls = controlGroup.querySelectorAll('.radio-control, .range-control, button.small-button, .checkbox-control');
         existingControls.forEach(el => el.remove());
         
-        // 如果启用了模糊，添加模糊强度控制和背景设置
+        // 如果启用了背景，添加背景设置控制
         if (enabled) {
-          // 添加模糊强度滑块
+          // 添加背景类型选择
+          const radioControl = document.createElement('div');
+          radioControl.className = 'radio-control';
+          radioControl.innerHTML = `
+            <input type="radio" id="bing-background" name="background-type" ${backgroundStore.type === 'bing' ? 'checked' : ''}>
+            <label for="bing-background">必应每日图片</label>
+            
+            <input type="radio" id="custom-background" name="background-type" ${backgroundStore.type === 'custom' ? 'checked' : ''}>
+            <label for="custom-background">自定义图片</label>
+          `;
+          controlGroup.appendChild(radioControl);
+          
+          // 添加上传按钮（如果是自定义类型）
+          if (backgroundStore.type === 'custom') {
+            const uploadButton = document.createElement('button');
+            uploadButton.id = 'upload-background';
+            uploadButton.className = 'small-button';
+            uploadButton.textContent = '上传图片';
+            controlGroup.appendChild(uploadButton);
+          }
+            
+          // 添加背景透明度滑块
           const rangeControl = document.createElement('div');
           rangeControl.className = 'range-control';
           rangeControl.innerHTML = `
-            <label for="blur-intensity">模糊强度: ${blurStore.intensity}px</label>
-            <input type="range" id="blur-intensity" min="1" max="15" value="${blurStore.intensity}">
+            <label for="background-opacity">背景不透明度: ${Math.round(backgroundStore.opacity * 100)}%</label>
+            <input type="range" id="background-opacity" min="1" max="100" value="${Math.round(backgroundStore.opacity * 100)}">
           `;
           controlGroup.appendChild(rangeControl);
           
-          // 为模糊强度滑块添加事件
-          const intensitySlider = rangeControl.querySelector('#blur-intensity');
-          if (intensitySlider) {
-            intensitySlider.addEventListener('input', (e) => {
-              const newValue = parseInt(e.target.value, 10);
-              setBlurIntensity(newValue);
-              
-              // 更新标签显示
-              const label = rangeControl.querySelector('label');
-              if (label) {
-                label.textContent = `模糊强度: ${newValue}px`;
-              }
-            });
-          }
-            // 添加背景设置控制组
-          const subControlGroup = document.createElement('div');
-          subControlGroup.className = 'sub-control-group';
-          subControlGroup.innerHTML = `
-            <div class="sub-control-title">背景设置</div>
-            <div class="checkbox-control">
-              <input type="checkbox" id="background-toggle" ${blurStore.background_enabled ? 'checked' : ''}>
-              <label for="background-toggle">启用背景图</label>
-            </div>
-            
-            ${blurStore.background_enabled ? `
-              <div class="radio-control">
-                <input type="radio" id="bing-background" name="background-type" ${blurStore.background_type === 'bing' ? 'checked' : ''}>
-                <label for="bing-background">必应每日图片</label>
-                
-                <input type="radio" id="custom-background" name="background-type" ${blurStore.background_type === 'custom' ? 'checked' : ''}>
-                <label for="custom-background">自定义图片</label>
-              </div>
-              
-              ${blurStore.background_type === 'bing' ? `
-                <button id="clear-bing-cache" class="small-button">清除图片缓存</button>
-              ` : ''}
-              
-              ${blurStore.background_type === 'custom' ? `
-                <button id="upload-background" class="small-button">上传图片</button>
-              ` : ''}
-              
-              <div class="range-control">
-                <label for="background-opacity">背景不透明度: ${Math.round(blurStore.background_opacity * 100)}%</label>
-                <input type="range" id="background-opacity" min="1" max="100" value="${Math.round(blurStore.background_opacity * 100)}">
-              </div>
-            ` : ''}
+          // 添加内容半透明开关
+          const transparencyControl = document.createElement('div');
+          transparencyControl.className = 'checkbox-control';
+          transparencyControl.id = 'content-transparency-container';
+          transparencyControl.innerHTML = `
+            <input type="checkbox" id="content-transparency-toggle" ${backgroundStore.content_transparency ? 'checked' : ''}>
+            <label for="content-transparency-toggle">微博内容半透明</label>
           `;
-          controlGroup.appendChild(subControlGroup);
+          controlGroup.appendChild(transparencyControl);
+          
+          // 如果内容半透明已启用，添加内容透明度滑块
+          if (backgroundStore.content_transparency) {
+              const contentOpacityControl = document.createElement('div');
+              contentOpacityControl.className = 'range-control';
+              contentOpacityControl.id = 'content-opacity-container';
+              contentOpacityControl.innerHTML = `
+                <label for="content-opacity">内容不透明度: ${Math.round(backgroundStore.content_opacity * 100)}%</label>
+                <input type="range" id="content-opacity" min="20" max="95" value="${Math.round(backgroundStore.content_opacity * 100)}">
+              `;
+              controlGroup.appendChild(contentOpacityControl);
+          }
           
           // 绑定背景设置相关控件的事件
-          bindBackgroundControlEvents(subControlGroup);
+          bindBackgroundControlEvents(controlGroup);
         }
       }
       
-      simpleNotify(enabled ? '高斯模糊效果已启用' : '高斯模糊效果已关闭');
-    });
-  }
-  
-  // 初始化模糊强度滑块（如果存在）
-  const intensitySlider = panel.querySelector('#blur-intensity');
-  if (intensitySlider) {
-    intensitySlider.addEventListener('input', (e) => {
-      const newValue = parseInt(e.target.value, 10);
-      setBlurIntensity(newValue);
-      
-      // 更新标签显示
-      const label = e.target.parentElement.querySelector('label');
-      if (label) {
-        label.textContent = `模糊强度: ${newValue}px`;
-      }
+      simpleNotify(enabled ? '背景功能已启用' : '背景功能已关闭');
     });
   }
   // 更宽模式
@@ -638,316 +610,92 @@ body.inject-widescreen-loose-js {
 }
 
 // 绑定背景设置控件事件
-function bindBackgroundControlEvents(container) {  // 背景开关
-  const backgroundToggle = container.querySelector('#background-toggle');
-  if (backgroundToggle) {
-    backgroundToggle.addEventListener('change', (e) => {
-      const enabled = e.target.checked;
-      blurStore.background_enabled = enabled;
-      saveBlurConfig();
-      
-      // 更新UI
-      const controlGroup = backgroundToggle.closest('.control-group');
-      
-      // 重新应用高斯模糊以更新背景
-      if (blurStore.enabled) {
-        // 直接重新应用背景 - 调用 applyBackground 而不是重复调用 toggleGaussianBlur
-        try {          // 确保模糊效果被应用
-          applyGaussianBlurStyles();
-          // 重新应用背景
-          applyBackground();
-        } catch (error) {
-          console.error('[微博背景] 切换背景状态出错:', error);
-        }
-      }
-      
-      simpleNotify(enabled ? '背景图片已启用' : '背景图片已禁用');
-    });
-  }
-    // 背景类型单选框
+function bindBackgroundControlEvents(container) {
+  // 背景类型单选框
   const bingRadio = container.querySelector('#bing-background');
   const customRadio = container.querySelector('#custom-background');
-  
+
   if (bingRadio) {
     bingRadio.addEventListener('change', (e) => {
       if (e.target.checked) {
         try {
-          console.log('[微博增强] 切换到必应每日图片背景');
-          
-          // 显示加载状态
-          const loadingMsg = document.createElement('span');
-          loadingMsg.id = 'bing-loading-msg';
-          loadingMsg.textContent = ' (加载中...)';
-          loadingMsg.style.fontSize = '12px';
-          loadingMsg.style.color = '#ff8200';
-          
-          // 添加到单选框标签后
-          const label = bingRadio.nextElementSibling;
-          if (label) {
-            label.appendChild(loadingMsg);
-          }
-          
-          // 禁用单选框，防止重复点击
-          bingRadio.disabled = true;
-          if (customRadio) customRadio.disabled = true;
-            // 直接设置背景类型并应用
           setBackgroundType('bing');
-          // 重新应用背景
           applyBackground();
-          // 更新UI
-          const subControlGroup = bingRadio.closest('.sub-control-group');
-          
-          // 移除可能存在的上传按钮
-          const oldUploadButton = subControlGroup.querySelector('#upload-background');
-          if (oldUploadButton) {
-            oldUploadButton.remove();
-          }
-          
-          // 添加清除必应缓存按钮（如果不存在）
-          if (!subControlGroup.querySelector('#clear-bing-cache')) {
-            const clearCacheButton = document.createElement('button');
-            clearCacheButton.id = 'clear-bing-cache';
-            clearCacheButton.className = 'small-button';
-            clearCacheButton.textContent = '清除图片缓存';
-            
-            // 在radio控件后插入按钮
-            const radioControl = bingRadio.closest('.radio-control');
-            if (radioControl && radioControl.nextElementSibling) {
-              subControlGroup.insertBefore(clearCacheButton, radioControl.nextElementSibling);
-            } else {
-              subControlGroup.appendChild(clearCacheButton);
-            }
-            
-            // 绑定清除缓存事件
-            clearCacheButton.addEventListener('click', () => {
-              try {
-                // 清除缓存并应用
-                const success = clearBingImageCache();
-                
-                if (success) {
-                  // 显示按钮状态变化
-                  clearCacheButton.textContent = '缓存已清除';
-                  clearCacheButton.disabled = true;
-                  
-                  // 1.5秒后恢复按钮状态
-                  setTimeout(() => {
-                    clearCacheButton.disabled = false;
-                    clearCacheButton.textContent = '清除图片缓存';
-                  }, 1500);
-                } else {
-                  simpleNotify('清除缓存失败，请重试');
-                }
-              } catch (error) {
-                console.error('[微博背景] 清除缓存出错:', error);
-                simpleNotify('清除缓存时发生错误');
-              }
-            });
-          }
-          
-          // 延时恢复交互状态
-          setTimeout(() => {
-            // 移除加载提示
-            const loadingEl = document.getElementById('bing-loading-msg');
-            if (loadingEl) loadingEl.remove();
-            
-            // 恢复单选框状态
-            bingRadio.disabled = false;
-            if (customRadio) customRadio.disabled = false;
-            
-            simpleNotify('已切换到必应每日图片背景');
-          }, 1500);
+          simpleNotify('已切换到必应每日图片背景');
         } catch (error) {
           console.error('[微博增强] 切换背景类型出错:', error);
           simpleNotify('切换背景类型出错，请重试');
-          
-          // 恢复单选框状态
-          bingRadio.disabled = false;
-          if (customRadio) customRadio.disabled = false;
-          
-          // 移除可能的加载提示
-          const loadingEl = document.getElementById('bing-loading-msg');
-          if (loadingEl) loadingEl.remove();
         }
       }
     });
   }
-    if (customRadio) {
+  if (customRadio) {
     customRadio.addEventListener('change', (e) => {
       if (e.target.checked) {
         try {
-          console.log('[微博增强] 切换到自定义图片背景');
-          
-          // 显示加载状态
-          const loadingMsg = document.createElement('span');
-          loadingMsg.id = 'custom-loading-msg';
-          loadingMsg.textContent = ' (准备中...)';
-          loadingMsg.style.fontSize = '12px';
-          loadingMsg.style.color = '#ff8200';
-          
-          // 添加到单选框标签后
-          const label = customRadio.nextElementSibling;
-          if (label) {
-            label.appendChild(loadingMsg);
-          }
-          
-          // 禁用单选框，防止重复点击
-          customRadio.disabled = true;
-          if (bingRadio) bingRadio.disabled = true;
-            
-          // 检查是否已有自定义图片URL
-          if (!blurStore.background_url || blurStore.background_url.trim() === '' || 
-              !blurStore.background_url.match(/^(data:|https?:\/\/)/i)) {
-            // 如果没有有效URL，先触发上传
-            uploadCustomBackground().then(success => {
-              if (success) {
-                // 如果上传成功，自动设置背景类型
-                console.log('[微博背景] 上传成功，设置为自定义类型');
-                setBackgroundType('custom');
-              } else {
-                // 如果用户取消上传，恢复UI状态并回退选项
-                console.log('[微博背景] 用户取消上传，恢复UI');
-                if (bingRadio) {
-                  bingRadio.checked = true;
-                  bingRadio.disabled = false;
-                }
-                customRadio.disabled = false;
-                const loadingEl = document.getElementById('custom-loading-msg');
-                if (loadingEl) loadingEl.remove();
-                return;
-              }
-            });
-          } else {
-            // 已有URL，直接设置背景类型
-            setBackgroundType('custom');
-          }
-          
-          // 更新UI
-          const subControlGroup = customRadio.closest('.sub-control-group');
-          
-          // 移除可能存在的清除缓存按钮
-          const clearCacheButton = subControlGroup.querySelector('#clear-bing-cache');
-          if (clearCacheButton) {
-            clearCacheButton.remove();
-          }
-          
-          // 添加上传按钮（如果不存在）
-          if (!subControlGroup.querySelector('#upload-background')) {
-            const uploadButton = document.createElement('button');
-            uploadButton.id = 'upload-background';
-            uploadButton.className = 'small-button';
-            uploadButton.textContent = '上传图片';
-            
-            // 在radio控件后插入按钮
-            const radioControl = customRadio.closest('.radio-control');
-            if (radioControl && radioControl.nextElementSibling) {
-              subControlGroup.insertBefore(uploadButton, radioControl.nextElementSibling);
-            } else {
-              subControlGroup.appendChild(uploadButton);
-            }
-              // 绑定上传事件
-            uploadButton.addEventListener('click', async () => {
-              // 禁用按钮
-              uploadButton.disabled = true;
-              uploadButton.textContent = '上传中...';
-              
-              try {
-                // 确保单选框已选择自定义模式
-                if (!customRadio.checked) {
-                  customRadio.checked = true;
-                }
-                
-                // 调用上传函数
-                const success = await uploadCustomBackground();
-                
-                if (success) {
-                  uploadButton.textContent = '上传成功';
-                  
-                  // 确保设置为自定义背景类型
-                  if (blurStore.background_type !== 'custom') {
-                    blurStore.background_type = 'custom';
-                    saveBlurConfig();
-                  }
-                  
-                  // 重新应用背景
-                  applyBackground();
-                  
-                  setTimeout(() => {
-                    uploadButton.disabled = false;
-                    uploadButton.textContent = '重新上传';
-                  }, 1500);
-                } else {
-                  uploadButton.textContent = '上传取消';
-                  
-                  // 如果没有自定义图片但类型是custom，切回bing
-                  if (blurStore.background_type === 'custom' && 
-                      (!blurStore.background_url || blurStore.background_url.trim() === '')) {
-                    blurStore.background_type = 'bing';
-                    saveBlurConfig();
-                    
-                    // 恢复UI状态
-                    if (bingRadio) bingRadio.checked = true;
-                    
-                    // 重新应用背景
-                    applyBackground();
-                  }
-                  
-                  setTimeout(() => {
-                    uploadButton.disabled = false;
-                    uploadButton.textContent = '上传图片';
-                  }, 1000);
-                }
-              } catch (error) {
-                console.error('[微博增强] 上传图片出错:', error);
-                uploadButton.textContent = '上传失败';
-                setTimeout(() => {
-                  uploadButton.disabled = false;
-                  uploadButton.textContent = '重试上传';
-                }, 1000);
-              }
-            });
-          }
-          
-          // 延时恢复交互状态
-          setTimeout(() => {
-            // 移除加载提示
-            const loadingEl = document.getElementById('custom-loading-msg');
-            if (loadingEl) loadingEl.remove();
-            
-            // 恢复单选框状态
-            customRadio.disabled = false;
-            if (bingRadio) bingRadio.disabled = false;
-            
-            simpleNotify('已切换到自定义图片背景');
-          }, 1000);
+          setBackgroundType('custom');
+          applyBackground();
+          simpleNotify('已切换到自定义图片背景');
         } catch (error) {
           console.error('[微博增强] 切换背景类型出错:', error);
           simpleNotify('切换背景类型出错，请重试');
-          
-          // 恢复单选框状态
-          customRadio.disabled = false;
-          if (bingRadio) bingRadio.disabled = false;
-          
-          // 移除可能的加载提示
-          const loadingEl = document.getElementById('custom-loading-msg');
-          if (loadingEl) loadingEl.remove();
         }
       }
     });
   }
-    // 清除必应图片缓存按钮
+  // 上传图片按钮
+  const uploadButton = container.querySelector('#upload-background');
+  if (uploadButton) {
+    uploadButton.addEventListener('click', async () => {
+      uploadButton.disabled = true;
+      uploadButton.textContent = '上传中...';
+      try {
+        const success = await uploadCustomBackground();
+        if (success) {
+          uploadButton.textContent = '上传成功';
+          setBackgroundType('custom');
+          applyBackground();
+          setTimeout(() => {
+            uploadButton.disabled = false;
+            uploadButton.textContent = '重新上传';
+          }, 1500);
+        } else {
+          uploadButton.textContent = '上传取消';
+          setTimeout(() => {
+            uploadButton.disabled = false;
+            uploadButton.textContent = '上传图片';
+          }, 1000);
+        }
+      } catch (error) {
+        uploadButton.textContent = '上传失败';
+        setTimeout(() => {
+          uploadButton.disabled = false;
+          uploadButton.textContent = '重试上传';
+        }, 1000);
+      }
+    });
+  }
+  // 透明度滑块
+  const opacitySlider = container.querySelector('#background-opacity');
+  if (opacitySlider) {
+    opacitySlider.addEventListener('input', (e) => {
+      const newValue = parseInt(e.target.value, 10) / 100;
+      setBackgroundOpacity(newValue);
+      const label = opacitySlider.parentElement.querySelector('label');
+      if (label) {
+        label.textContent = `背景不透明度: ${Math.round(newValue * 100)}%`;
+      }
+    });
+  }
+  // 清除必应图片缓存按钮
   const clearCacheButton = container.querySelector('#clear-bing-cache');
   if (clearCacheButton) {
     clearCacheButton.addEventListener('click', () => {
       try {
-        // 清除缓存并应用
         const success = clearBingImageCache();
-        
         if (success) {
-          // 显示按钮状态变化
           clearCacheButton.textContent = '缓存已清除';
           clearCacheButton.disabled = true;
-          
-          // 1.5秒后恢复按钮状态
           setTimeout(() => {
             clearCacheButton.disabled = false;
             clearCacheButton.textContent = '清除图片缓存';
@@ -956,118 +704,109 @@ function bindBackgroundControlEvents(container) {  // 背景开关
           simpleNotify('清除缓存失败，请重试');
         }
       } catch (error) {
-        console.error('[微博背景] 清除缓存出错:', error);
         simpleNotify('清除缓存时发生错误');
       }
     });
   }
-  // 上传背景按钮
-  const uploadButton = container.querySelector('#upload-background');
-  if (uploadButton) {
-    uploadButton.addEventListener('click', async () => {
-      // 禁用按钮并显示状态
-      uploadButton.disabled = true;
-      uploadButton.textContent = '上传中...';
-      
-      try {
-        // 确保单选框已选择自定义模式
-        const customRadio = container.querySelector('#custom-background');
-        if (customRadio && !customRadio.checked) {
-          customRadio.checked = true;
-        }
-        
-        // 调用上传函数
-        const success = await uploadCustomBackground();
-        
-        if (success) {
-          uploadButton.textContent = '上传成功';
-          
-          // 确保设置为自定义背景类型
-          if (blurStore.background_type !== 'custom') {
-            blurStore.background_type = 'custom';
-            saveBlurConfig();
-          }
-          
-          simpleNotify('图片上传成功，已应用为背景');
-          
-          setTimeout(() => {
-            uploadButton.disabled = false;
-            uploadButton.textContent = '重新上传';
-          }, 1500);
-        } else {
-          uploadButton.textContent = '上传取消';
-          simpleNotify('图片上传已取消');
-          
-          setTimeout(() => {
-            uploadButton.disabled = false;
-            uploadButton.textContent = '上传图片';
-          }, 1000);
-        }
-      } catch (error) {
-        console.error('[微博增强] 上传图片出错:', error);
-        uploadButton.textContent = '上传失败';
-        simpleNotify('图片上传失败，请重试');
-        
-        setTimeout(() => {
-          uploadButton.disabled = false;
-          uploadButton.textContent = '重试上传';
-        }, 1000);
-      }
-    });
+  
+  // 内容半透明开关
+  const contentTransparencyToggle = container.querySelector('#content-transparency-toggle');
+  if (contentTransparencyToggle) {
+    // 防止重复绑定事件
+    contentTransparencyToggle.removeEventListener('change', contentTransparencyChangeHandler);
+    contentTransparencyToggle.addEventListener('change', contentTransparencyChangeHandler);
   }
-    // 背景不透明度滑块
-  const opacitySlider = container.querySelector('#background-opacity');
-  if (opacitySlider) {
-    // 初始化滑块值
-    opacitySlider.value = Math.round(blurStore.background_opacity * 100);
+  
+  // 内容透明度滑块
+  const contentOpacitySlider = container.querySelector('#content-opacity');
+  if (contentOpacitySlider) {
+    // 防止重复绑定事件
+    contentOpacitySlider.removeEventListener('input', contentOpacityInputHandler);
+    contentOpacitySlider.addEventListener('input', contentOpacityInputHandler);
+  }
+}
+
+// 内容半透明开关事件处理函数
+function contentTransparencyChangeHandler(e) {
+  const enabled = e.target.checked;
+  try {
+    // 更新存储
+    backgroundStore.content_transparency = enabled;
+    saveBackgroundConfig();
     
-    // 初始化标签文本
-    const label = opacitySlider.previousElementSibling;
-    if (label && label.tagName === 'LABEL') {
-      label.textContent = `背景不透明度: ${Math.round(blurStore.background_opacity * 100)}%`;
+    // 应用背景，这会触发内容透明度设置
+    applyBackground();
+    
+    // 处理UI：添加或移除内容透明度滑块
+    const controlGroup = e.target.closest('.control-group');
+    if (controlGroup) {
+      // 检查是否已有透明度控件容器
+      let opacityContainer = controlGroup.querySelector('#content-opacity-container');
+      
+      // 如果启用了内容半透明
+      if (enabled) {
+        // 如果没有透明度滑块容器，创建一个
+        if (!opacityContainer) {
+          opacityContainer = document.createElement('div');
+          opacityContainer.className = 'range-control';
+          opacityContainer.id = 'content-opacity-container';
+          opacityContainer.innerHTML = `
+            <label for="content-opacity">内容不透明度: ${Math.round(backgroundStore.content_opacity * 100)}%</label>
+            <input type="range" id="content-opacity" min="20" max="95" value="${Math.round(backgroundStore.content_opacity * 100)}">
+          `;
+          
+          // 插入到半透明开关后面
+          const transparencyContainer = e.target.closest('#content-transparency-container');
+          if (transparencyContainer) {
+            // 确保只插入一次
+            if (!controlGroup.querySelector('#content-opacity-container')) {
+              if (transparencyContainer.nextSibling) {
+                controlGroup.insertBefore(opacityContainer, transparencyContainer.nextSibling);
+              } else {
+                controlGroup.appendChild(opacityContainer);
+              }
+              
+              // 为新滑块添加事件处理
+              const slider = opacityContainer.querySelector('#content-opacity');
+              if (slider) {
+                slider.addEventListener('input', contentOpacityInputHandler);
+              }
+            }
+          }
+        } else {
+          // 如果已有滑块容器，确保可见
+          opacityContainer.style.display = '';
+        }
+      } 
+      // 如果禁用了内容半透明且有滑块容器，隐藏它
+      else if (!enabled && opacityContainer) {
+        opacityContainer.style.display = 'none';
+      }
     }
     
-    // 防抖函数，避免频繁触发应用函数
-    let opacityDebounceTimer = null;
-    const debounceDelay = 100; // 毫秒
+    // 通知用户
+    simpleNotify(enabled ? '微博内容半透明已启用' : '微博内容半透明已关闭');
+    console.log(`[微博增强] 微博内容半透明: ${enabled ? '开启' : '关闭'}`);
+  } catch (error) {
+    console.error('[微博增强] 切换内容半透明设置失败:', error);
+    simpleNotify('设置内容半透明失败');
+  }
+}
+
+// 内容透明度滑块事件处理函数
+function contentOpacityInputHandler(e) {
+  const newValue = parseInt(e.target.value, 10) / 100;
+  try {
+    // 设置内容透明度
+    setContentOpacity(newValue);
     
-    // 实时更新UI，但延迟应用实际效果
-    opacitySlider.addEventListener('input', (e) => {
-      const newValue = parseInt(e.target.value, 10) / 100; // 转换为0-1范围
-      
-      // 立即更新UI显示
-      const label = opacitySlider.previousElementSibling;
-      if (label && label.tagName === 'LABEL') {
-        label.textContent = `背景不透明度: ${Math.round(newValue * 100)}%`;
-      }
-      
-      // 实时预览 - 直接更新DOM元素不透明度，但不保存配置
-      const backgroundElement = document.getElementById('weibo-blur-background');
-      if (backgroundElement) {
-        backgroundElement.style.setProperty('opacity', newValue, 'important');
-      }
-      
-      // 防抖处理 - 只在停止滑动一段时间后调用完整的setBackgroundOpacity
-      clearTimeout(opacityDebounceTimer);
-      opacityDebounceTimer = setTimeout(() => {
-        console.log('[微博背景] 应用新不透明度:', newValue);
-        
-        // 调用背景工具函数来保存配置并应用透明度
-        setBackgroundOpacity(newValue);
-      }, debounceDelay);
-    });
-    
-    // 滑块值变化结束事件
-    opacitySlider.addEventListener('change', (e) => {
-      const newValue = parseInt(e.target.value, 10) / 100;
-      console.log('[微博背景] 不透明度调整完成:', newValue);
-      
-      // 确保值已应用到全局配置
-      setBackgroundOpacity(newValue);
-      
-      // 提供反馈
-      simpleNotify(`背景不透明度已设置为 ${Math.round(newValue * 100)}%`);
-    });
+    // 更新滑块标签
+    const label = e.target.parentElement.querySelector('label');
+    if (label) {
+      label.textContent = `内容不透明度: ${Math.round(newValue * 100)}%`;
+    }
+  } catch (error) {
+    console.error('[微博增强] 设置内容透明度失败:', error);
   }
 }
 
@@ -1121,9 +860,9 @@ export function registerMenus() {
     
     simpleNotify(widescreenStore.ui_visible ? '控制面板已显示' : '控制面板已隐藏');
   });
-    GM_registerMenuCommand('高斯模糊效果', function() {
-    // 切换高斯模糊并重建控制面板
-    toggleGaussianBlur();
+  GM_registerMenuCommand('背景设置', function() {
+    // 切换背景设置并重建控制面板
+    toggleBackgroundEnabled();
     
     // 更新控制面板
     const panel = document.querySelector('.weibo-enhance-panel');
@@ -1132,7 +871,7 @@ export function registerMenus() {
       createControlPanel();
     }
     
-    simpleNotify(blurStore.enabled ? '高斯模糊效果已启用' : '高斯模糊效果已关闭');
+    simpleNotify(backgroundStore.enabled ? '背景功能已启用' : '背景功能已关闭');
   });
   GM_registerMenuCommand('重置所有设置', function() {
     if (confirm('确定要重置所有设置吗？页面将会刷新。')) {
@@ -1146,15 +885,12 @@ export function registerMenus() {
           'widescreen_ui_visible', 
           'widescreen_panel_expanded', 
           'widescreen_panel_position',
-          
-          // 高斯模糊相关
-          'blur_enabled', 
-          'blur_intensity', 
-          'blur_notify_enabled', 
-          'blur_background_enabled', 
-          'blur_background_type', 
-          'blur_background_url',
-          'blur_background_opacity',
+            // 背景功能相关
+          'background_enabled',
+          'background_type',
+          'background_url',
+          'background_opacity',
+          'background_notify_enabled',
           
           // 主题相关
           'userOverride',

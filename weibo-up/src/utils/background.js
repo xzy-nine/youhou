@@ -1,5 +1,5 @@
 // 背景图片管理功能
-import { blurStore, saveBlurConfig } from './storage';
+import { backgroundStore, saveBackgroundConfig } from './storage';
 import { simpleNotify } from './notification';
 
 // 必应图片缓存键和过期时间（24小时）
@@ -430,23 +430,23 @@ function createFileSelector() {
  */
 export async function getBackgroundUrl() {
     // 如果未启用背景，返回null
-    if (!blurStore.background_enabled) {
+    if (!backgroundStore.enabled) {
         return null;
     }
     
     // 根据背景类型获取URL
-    if (blurStore.background_type === 'bing') {
+    if (backgroundStore.type === 'bing') {
         return await fetchBingImage();
-    } else if (blurStore.background_type === 'custom') {
+    } else if (backgroundStore.type === 'custom') {
         // 确认自定义URL存在且有效
-        if (blurStore.background_url && blurStore.background_url.trim() !== '') {
+        if (backgroundStore.url && backgroundStore.url.trim() !== '') {
             console.log('[微博背景] 使用自定义背景图片');
-            return blurStore.background_url;
+            return backgroundStore.url;
         } else {
             console.log('[微博背景] 自定义背景URL无效，尝试切换到必应图片');
             // 自动切换到必应
-            blurStore.background_type = 'bing';
-            saveBlurConfig();
+            backgroundStore.type = 'bing';
+            saveBackgroundConfig();
             return await fetchBingImage();
         }
     }
@@ -469,7 +469,7 @@ export function setBackgroundType(type) {
     }
     
     // 验证自定义类型是否有URL（如果是自定义类型）
-    if (type === 'custom' && (!blurStore.background_url || blurStore.background_url.trim() === '')) {
+    if (type === 'custom' && (!backgroundStore.url || backgroundStore.url.trim() === '')) {
         // 如果没有自定义URL但用户想切换到自定义模式，先弹出上传对话框
         console.log('[微博背景] 切换到自定义模式但缺少URL，将触发上传流程');
         // 延迟执行，保存配置但稍后触发上传
@@ -478,8 +478,8 @@ export function setBackgroundType(type) {
                 if (!success) {
                     // 如果用户取消了上传，回退到必应
                     console.log('[微博背景] 用户取消上传，回退到必应图片');
-                    blurStore.background_type = 'bing';
-                    saveBlurConfig();
+                    backgroundStore.type = 'bing';
+                    saveBackgroundConfig();
                     applyBackground();
                 }
             });
@@ -490,14 +490,14 @@ export function setBackgroundType(type) {
     simpleNotify(`正在切换到${type === 'bing' ? '必应每日图片' : '自定义图片'}...`);
     
     // 先保存新的类型
-    blurStore.background_type = type;
-    saveBlurConfig();
+    backgroundStore.type = type;
+    saveBackgroundConfig();
     
     // 特别处理：确保背景功能开启
-    if (!blurStore.background_enabled) {
+    if (!backgroundStore.enabled) {
         console.log('[微博背景] 背景功能未启用，自动启用');
-        blurStore.background_enabled = true;
-        saveBlurConfig();
+        backgroundStore.enabled = true;
+        saveBackgroundConfig();
     }
     
     // 在清除旧背景前设置加载指示
@@ -540,21 +540,34 @@ export function setBackgroundType(type) {
  * @param {number} opacity 不透明度 (0-1)
  */
 export function setBackgroundOpacity(opacity) {
-    // 确保值在0-1范围内
-    const newOpacity = Math.max(0, Math.min(1, opacity));
-    
-    // 记录旧值用于调试
-    const oldOpacity = blurStore.background_opacity;
-    
-    // 更新存储的值
-    blurStore.background_opacity = newOpacity;
-    saveBlurConfig();
-    
-    console.log(`[微博背景] 设置透明度: ${oldOpacity} -> ${newOpacity}`);
-    
-    // 直接更新现有背景元素的不透明度，无需完全重新应用
-    const backgroundElement = document.getElementById('weibo-blur-background');
-    if (backgroundElement) {
+    try {
+        // 确保值在0-1范围内
+        const newOpacity = Math.max(0, Math.min(1, opacity));
+        
+        // 记录旧值用于调试
+        const oldOpacity = backgroundStore.opacity;
+        
+        // 更新存储的值
+        backgroundStore.opacity = newOpacity;
+        saveBackgroundConfig();
+        
+        console.log(`[微博背景] 设置透明度: ${oldOpacity} -> ${newOpacity}`);
+        
+        // 直接更新现有背景元素的不透明度，无需完全重新应用
+        const backgroundElement = document.getElementById('weibo-blur-background');
+        if (!backgroundElement) {
+            console.warn('[微博背景] 找不到背景元素，无法设置透明度，尝试重新应用背景');
+            // 如果元素不存在，尝试重新应用背景
+            setTimeout(() => {
+                try {
+                    applyBackground();
+                } catch (e) {
+                    console.error('[微博背景] 重新应用背景失败:', e);
+                }
+            }, 100);
+            return;
+        }
+        
         console.log('[微博背景] 直接更新背景不透明度:', newOpacity);
         
         try {
@@ -619,15 +632,27 @@ export function setBackgroundOpacity(opacity) {
             if (Math.round(newOpacity * 100) % 10 === 0) { // 只在10%的倍数上显示通知
                 simpleNotify(`背景不透明度: ${Math.round(newOpacity * 100)}%`);
             }
-        } catch (error) {
-            console.error('[微博背景] 设置透明度失败:', error);
-            // 失败时使用完全重新应用
-            applyBackground();
+        } catch (innerError) {
+            console.error('[微博背景] 设置透明度详细步骤失败:', innerError);
+            // 如果详细步骤失败，尝试最简单的方式
+            try {
+                backgroundElement.style.opacity = String(newOpacity);
+            } catch (simpleError) {
+                console.error('[微博背景] 简单设置透明度也失败:', simpleError);
+                // 失败时使用完全重新应用
+                setTimeout(() => applyBackground(), 100);
+            }
         }
-    } else {
-        // 如果背景元素不存在，则完全重新应用
-        console.log('[微博背景] 未找到背景元素，重新应用背景');
-        applyBackground();
+    } catch (outerError) {
+        console.error('[微博背景] 设置透明度整体操作失败:', outerError);
+        // 失败时使用完全重新应用
+        setTimeout(() => {
+            try {
+                applyBackground();
+            } catch (e) {
+                console.error('[微博背景] 错误处理中重新应用背景失败:', e);
+            }
+        }, 100);
     }
 }
 
@@ -636,10 +661,10 @@ export function setBackgroundOpacity(opacity) {
  * @returns {boolean} 新的启用状态
  */
 export function toggleBackgroundEnabled() {
-    blurStore.background_enabled = !blurStore.background_enabled;
-    saveBlurConfig();
+    backgroundStore.enabled = !backgroundStore.enabled;
+    saveBackgroundConfig();
     applyBackground();
-    return blurStore.background_enabled;
+    return backgroundStore.enabled;
 }
 
 /**
@@ -652,10 +677,9 @@ export function clearBingImageCache() {
         console.log('[微博背景] 正在清除必应图片缓存');
         GM_setValue(BING_CACHE_KEY, null);
         simpleNotify('已清除背景图片缓存，将重新获取最新图片');
-        
-        // 自动重新应用背景，使用新图片
+          // 自动重新应用背景，使用新图片
         setTimeout(() => {
-            if (blurStore.background_type === 'bing') {
+            if (backgroundStore.type === 'bing') {
                 applyBackground();
             }
         }, 500);
@@ -751,11 +775,10 @@ export async function uploadCustomBackground() {
         
         // 显示加载中提示
         simpleNotify('图片已选择，正在应用...');
-        
-        // 保存到配置
-        blurStore.background_url = imageResult.url;
-        blurStore.background_type = 'custom';
-        saveBlurConfig();
+          // 保存到配置
+        backgroundStore.url = imageResult.url;
+        backgroundStore.type = 'custom';
+        saveBackgroundConfig();
         
         // 预加载图片，确保能正常显示
         return new Promise((resolve) => {
@@ -768,13 +791,12 @@ export async function uploadCustomBackground() {
                 resolve(true);
             };
             
-            img.onerror = () => {
-                console.error('[微博背景] 自定义图片加载失败:', imageResult.url.substring(0, 50) + '...');
+            img.onerror = () => {                console.error('[微博背景] 自定义图片加载失败:', imageResult.url.substring(0, 50) + '...');
                 simpleNotify('图片加载失败，请尝试其他图片');
                 
                 // 回退到必应图片
-                blurStore.background_type = 'bing';
-                saveBlurConfig();
+                backgroundStore.type = 'bing';
+                saveBackgroundConfig();
                 applyBackground();
                 resolve(false);
             };
@@ -785,10 +807,9 @@ export async function uploadCustomBackground() {
                     console.error('[微博背景] 图片加载超时');
                     img.src = ''; // 中断加载
                     simpleNotify('图片加载超时，请尝试其他图片');
-                    
-                    // 回退到必应图片
-                    blurStore.background_type = 'bing';
-                    saveBlurConfig();
+                      // 回退到必应图片
+                    backgroundStore.type = 'bing';
+                    saveBackgroundConfig();
                     applyBackground();
                     resolve(false);
                 }
@@ -810,20 +831,19 @@ export async function uploadCustomBackground() {
         console.error('[微博背景] 上传图片失败:', error);
         simpleNotify('上传图片失败，请尝试直接输入图片URL');
         
-        // 如果出现错误，尝试URL输入作为备用
-        const imageUrl = await getImageUrlFromUser();
+        // 如果出现错误，尝试URL输入作为备用        const imageUrl = await getImageUrlFromUser();
         if (imageUrl) {
-            blurStore.background_url = imageUrl;
-            blurStore.background_type = 'custom';
-            saveBlurConfig();
+            backgroundStore.url = imageUrl;
+            backgroundStore.type = 'custom';
+            saveBackgroundConfig();
             
             // 验证URL
             const img = new Image();
             img.onload = () => applyBackground();
             img.onerror = () => {
                 // 失败时切换到必应图片
-                blurStore.background_type = 'bing';
-                saveBlurConfig();
+                backgroundStore.type = 'bing';
+                saveBackgroundConfig();
                 applyBackground();
                 simpleNotify('图片URL无法访问，已切换到必应每日图片');
             };
@@ -840,37 +860,35 @@ export async function uploadCustomBackground() {
  * 应用背景图片
  */
 export async function applyBackground() {
-    console.log('[微博背景] 开始应用背景图片...');    try {
-        // 移除旧背景
-        let backgroundElement = document.getElementById('weibo-blur-background');
-        if (backgroundElement) {
-            backgroundElement.remove();
+    console.log('[微博背景] 开始应用背景图片...');    try {        // 移除旧背景
+        let bgElement = document.getElementById('weibo-blur-background');
+        if (bgElement) {
+            bgElement.remove();
             console.log('[微博背景] 已移除旧背景元素');
-        }
+        }        // 不管背景是否启用，都需要处理内容透明度设置
+        addContentTransparencyStyles();
         
         // 如果背景功能未启用，直接返回
-        if (!blurStore.background_enabled) {
+        if (!backgroundStore.enabled) {
             console.log('[微博背景] 背景功能未启用，不应用背景');
             return;
         }
         
         // 如果自定义背景类型但URL为空，自动切换到必应
-        if (blurStore.background_type === 'custom' && (!blurStore.background_url || blurStore.background_url.trim() === '')) {
+        if (backgroundStore.type === 'custom' && (!backgroundStore.url || backgroundStore.url.trim() === '')) {
             console.log('[微博背景] 自定义背景URL为空，自动切换到必应背景');
-            blurStore.background_type = 'bing';
-            saveBlurConfig();
+            backgroundStore.type = 'bing';
+            saveBackgroundConfig();
         }
         
         console.log('[微博背景] 当前背景设置:', {
-            enabled: blurStore.background_enabled,
-            type: blurStore.background_type,
-            opacity: blurStore.background_opacity,
-            hasCustomUrl: !!blurStore.background_url
-        });
-        
-        // 创建背景元素并添加到DOM，以便在等待图片加载时就已经有了元素
-        backgroundElement = document.createElement('div');
-        backgroundElement.id = 'weibo-blur-background';
+            enabled: backgroundStore.enabled,
+            type: backgroundStore.type,
+            opacity: backgroundStore.opacity,
+            hasCustomUrl: !!backgroundStore.url
+        });        // 创建背景元素并添加到DOM，以便在等待图片加载时就已经有了元素
+        bgElement = document.createElement('div');
+        bgElement.id = 'weibo-blur-background';
         
         // 添加基础样式 - 调整z-index确保在最底层但仍然可见
         const baseStyle = `
@@ -884,24 +902,25 @@ export async function applyBackground() {
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
-            opacity: ${blurStore.background_opacity}; /* 使用配置的透明度 */
+            opacity: ${backgroundStore.opacity}; /* 使用配置的透明度 */
             z-index: -1; /* 改为-1，确保在最底层但仍然可见 */
             pointer-events: none;
             will-change: opacity; /* 优化性能 */
             transition: opacity 0.5s ease;
             background-color: rgba(173, 216, 230, 0.5); /* 提高初始背景色透明度便于调试 */
-        `;
-        backgroundElement.style.cssText = baseStyle;
-        
-        // 立即添加到页面最前面
+        `;        bgElement.style.cssText = baseStyle;
+          // 立即添加到页面最前面
         if (document.body.firstChild) {
-            document.body.insertBefore(backgroundElement, document.body.firstChild);
+            document.body.insertBefore(bgElement, document.body.firstChild);
         } else {
-            document.body.appendChild(backgroundElement);
+            document.body.appendChild(bgElement);
         }
         
         // 强制应用特定样式给页面容器
         forceApplyContainerStyles();
+        
+        // 添加微博内容半透明样式
+        addContentTransparencyStyles();
         
         // 获取背景URL
         const backgroundUrl = await getBackgroundUrl();
@@ -923,13 +942,13 @@ export async function applyBackground() {
             imageLoadSuccess = true;
             clearTimeout(imageTimeout); // 清除超时定时器
             
-            console.log('[微博背景] 背景图片加载成功');
-            // 设置背景图片，保留淡蓝色作为混合
-            backgroundElement.style.backgroundImage = `url("${backgroundUrl}")`;
+            console.log('[微博背景] 背景图片加载成功');            // 设置背景图片，保留淡蓝色作为混合
+            bgElement.style.backgroundImage = `url("${backgroundUrl}")`;
             // 移除淡蓝色背景，仅在加载完成后
             setTimeout(() => {
-                if (backgroundElement) {
-                    backgroundElement.style.backgroundColor = 'transparent';
+                const currentBgElement = document.getElementById('weibo-blur-background');
+                if (currentBgElement) {
+                    currentBgElement.style.backgroundColor = 'transparent';
                     simpleNotify('背景图片应用成功');
                 }
             }, 300);
@@ -941,10 +960,9 @@ export async function applyBackground() {
             
             // 显示错误通知并保持淡蓝色调试背景
             simpleNotify('背景图片加载失败，使用纯色背景');
-            
-            // 确保背景色可见
-            backgroundElement.style.backgroundImage = 'none';
-            backgroundElement.style.backgroundColor = 'rgba(173, 216, 230, 0.3)';
+              // 确保背景色可见
+            bgElement.style.backgroundImage = 'none';
+            bgElement.style.backgroundColor = 'rgba(173, 216, 230, 0.3)';
             
             // 清理缓存，避免重复使用失败的URL
             GM_setValue(BING_CACHE_KEY, null);
@@ -990,8 +1008,94 @@ function forceApplyContainerStyles() {
         document.querySelector('.Frame_content_3XrxZ'),
         document.querySelector('.Frame_side_2mgLd'),
         document.querySelector('.wbpro-side-main')
-    ];
-    
+    ];    // 应用半透明效果到微博内容容器
+    if (backgroundStore.enabled && backgroundStore.content_transparency) {
+        // 优先处理文章容器元素
+        const articleSelectors = [
+            'article',
+            '#scroller > div.vue-recycle-scroller__item-wrapper > div > div > article',
+            '#scroller > div.vue-recycle-scroller__item-wrapper > div:nth-child(n) > div > article'
+        ];
+        
+        // 拼接文章选择器
+        const articleCombinedSelector = articleSelectors.join(', ');
+        
+        // 查找所有文章元素
+        const articleElements = document.querySelectorAll(articleCombinedSelector);
+        
+        console.log(`[微博背景] 找到 ${articleElements.length} 个微博文章容器`);
+        
+        // 应用样式到文章元素
+        articleElements.forEach(element => {
+            if (element) {
+                // 检查当前主题
+                const isDarkMode = document.documentElement.classList.contains('woo-theme-dark');
+                  // 根据主题和用户设置的透明度设置不同的背景色
+                const contentOpacity = backgroundStore.content_opacity;
+                const bgColor = isDarkMode ? 
+                    `rgba(30, 30, 30, ${contentOpacity})` : 
+                    `rgba(255, 255, 255, ${contentOpacity})`;
+                
+                // 应用样式到文章容器
+                element.style.backgroundColor = bgColor;
+                element.style.backdropFilter = 'blur(5px)';
+                element.style.borderRadius = '8px';
+                element.style.margin = '5px 0';
+                element.style.padding = '10px';
+                element.style.transition = 'background-color 0.3s ease';
+                element.style.boxShadow = isDarkMode ? 
+                    '0 2px 10px rgba(0, 0, 0, 0.2)' : 
+                    '0 2px 10px rgba(0, 0, 0, 0.05)';
+                
+                // 确保内部元素透明
+                const innerElements = element.querySelectorAll('.wbpro-feed-content, [class*="feed-content"], [class*="Feed_body"] > div');
+                innerElements.forEach(innerEl => {
+                    innerEl.style.backgroundColor = 'transparent';
+                    innerEl.style.boxShadow = 'none';
+                    innerEl.style.borderRadius = '0';
+                });
+            }
+        });
+        
+        // 处理其他可能的微博内容容器（旧版或其他页面的容器）
+        const otherSelectors = [
+            '.content:not(article .content)',
+            '.card-feed:not(article .card-feed)',
+            '.wb-item .content',
+            '.card-wrap .card-feed'
+        ];
+        
+        // 拼接其他选择器
+        const otherCombinedSelector = otherSelectors.join(', ');
+        
+        // 查找所有其他内容容器
+        const otherContentElements = document.querySelectorAll(otherCombinedSelector);
+        
+        console.log(`[微博背景] 找到 ${otherContentElements.length} 个其他微博内容容器`);
+        
+        // 应用样式到其他内容容器
+        otherContentElements.forEach(element => {
+            if (element) {                const isDarkMode = document.documentElement.classList.contains('woo-theme-dark');
+                const contentOpacity = backgroundStore.content_opacity;
+                const bgColor = isDarkMode ? 
+                    `rgba(30, 30, 30, ${contentOpacity})` : 
+                    `rgba(255, 255, 255, ${contentOpacity})`;
+                
+                element.style.backgroundColor = bgColor;
+                element.style.backdropFilter = 'blur(5px)';
+                element.style.borderRadius = '8px';
+                element.style.margin = '5px';
+                element.style.padding = '10px';
+                element.style.boxShadow = isDarkMode ? 
+                    '0 2px 10px rgba(0, 0, 0, 0.2)' : 
+                    '0 2px 10px rgba(0, 0, 0, 0.05)';
+            }
+        });
+        
+        if (articleElements.length > 0 || otherContentElements.length > 0) {
+            console.log('[微博背景] 已应用半透明效果到微博容器');
+        }
+    }
     // 应用样式到所有找到的容器上
     containers.forEach(container => {
         if (container) {
@@ -1067,9 +1171,8 @@ function setupBackgroundPersistence() {
         window.__weiboBackgroundObserver.disconnect();
     }
       // 定期检查背景是否可见
-    const periodicCheck = setInterval(() => {
-        // 如果背景功能和高斯模糊都启用，但背景元素丢失，则重新应用
-        if (blurStore.background_enabled && blurStore.enabled) {
+    const periodicCheck = setInterval(() => {        // 如果背景功能启用，但背景元素丢失，则重新应用
+        if (backgroundStore.enabled) {
             const backgroundElement = document.getElementById('weibo-blur-background');
             if (!backgroundElement) {
                 console.log('[微博背景] 定期检查: 背景元素丢失，重新应用背景');
@@ -1080,7 +1183,7 @@ function setupBackgroundPersistence() {
                 if (style.display === 'none' || parseFloat(style.opacity) === 0 || style.visibility === 'hidden') {
                     console.log('[微博背景] 定期检查: 背景元素不可见，重置样式');
                     backgroundElement.style.display = 'block';
-                    backgroundElement.style.opacity = blurStore.background_opacity;
+                    backgroundElement.style.opacity = backgroundStore.opacity;
                     backgroundElement.style.visibility = 'visible';
                 }
             }
@@ -1095,21 +1198,19 @@ function setupBackgroundPersistence() {
         // 防抖动处理
         if (window.__weiboBackgroundDebounce) {
             clearTimeout(window.__weiboBackgroundDebounce);
-        }
-          window.__weiboBackgroundDebounce = setTimeout(() => {
-            // 检查高斯模糊和背景功能状态
-            if (!blurStore.enabled) {
-                // 如果高斯模糊未启用，移除背景元素
+        }          window.__weiboBackgroundDebounce = setTimeout(() => {
+            // 检查背景功能状态
+            if (!backgroundStore.enabled) {
                 const backgroundElement = document.getElementById('weibo-blur-background');
                 if (backgroundElement) {
-                    console.log('[微博背景] 检测到高斯模糊已关闭，移除背景元素');
+                    console.log('[微博背景] 检测到背景功能已关闭，移除背景元素');
                     backgroundElement.remove();
                 }
                 return;
             }
             
-            // 同时检查高斯模糊和背景功能是否都启用
-            if (blurStore.enabled && blurStore.background_enabled) {
+            // 检查背景功能是否启用
+            if (backgroundStore.enabled) {
                 // 检查背景元素是否还存在
                 const backgroundElement = document.getElementById('weibo-blur-background');
                 if (!backgroundElement) {
@@ -1118,18 +1219,18 @@ function setupBackgroundPersistence() {
                     return;
                 }
             }
-            
-            // 如果背景元素存在但没有正确的样式，修复它
-            if (backgroundElement) {
-                const backgroundStyle = window.getComputedStyle(backgroundElement);
+              // 如果背景元素存在但没有正确的样式，修复它
+            const bgElement = document.getElementById('weibo-blur-background');
+            if (bgElement) {
+                const backgroundStyle = window.getComputedStyle(bgElement);
                 
                 // 检查是否需要修复z-index
                 if (parseInt(backgroundStyle.zIndex) < -1 || parseFloat(backgroundStyle.opacity) === 0) {
                     console.log('[微博背景] 检测到背景元素样式异常，正在修复 z-index:', backgroundStyle.zIndex, 'opacity:', backgroundStyle.opacity);
-                    backgroundElement.style.zIndex = '-1'; // 使用-1而不是-9999
-                    backgroundElement.style.opacity = blurStore.background_opacity;
-                    backgroundElement.style.display = 'block';
-                    backgroundElement.style.visibility = 'visible';
+                    bgElement.style.zIndex = '-1'; // 使用-1而不是-9999
+                    bgElement.style.opacity = backgroundStore.opacity;
+                    bgElement.style.display = 'block';
+                    bgElement.style.visibility = 'visible';
                 }
                 
                 // 重新应用容器样式，确保内容在背景上方显示
@@ -1149,4 +1250,322 @@ function setupBackgroundPersistence() {
     // 保存引用以备后续使用
     window.__weiboBackgroundObserver = observer;
     console.log('[微博背景] 已设置背景持久性监视');
+}
+
+// 添加半透明微博内容的CSS样式
+function addContentTransparencyStyles() {
+    const styleId = 'weibo-content-transparency-style';
+    
+    // 如果背景功能未启用或内容透明度未启用，移除已有样式
+    if (!backgroundStore.enabled || !backgroundStore.content_transparency) {
+        const existingStyle = document.getElementById(styleId);
+        if (existingStyle) {
+            existingStyle.remove();
+            console.log('[微博背景] 已移除微博内容半透明样式');
+        }
+        return;
+    }
+    
+    // 更新或创建样式元素
+    let style = document.getElementById(styleId);
+    if (!style) {
+        style = document.createElement('style');
+        style.id = styleId;
+        document.head.appendChild(style);
+    }// 获取用户设置的内容透明度
+    const contentOpacity = backgroundStore.content_opacity;
+    // 计算深色模式的不透明度(保持相同透明度但使用深色背景)
+    const darkOpacity = contentOpacity;
+    
+    // 使用用户配置的透明度动态生成CSS
+    style.textContent = `
+        /* 微博Feed容器 - 整体article元素半透明 */
+        #scroller > div.vue-recycle-scroller__item-wrapper > div > div > article,
+        #scroller > div.vue-recycle-scroller__item-wrapper > div:nth-child(n) > div > article {
+            background-color: rgba(255, 255, 255, ${contentOpacity}) !important;
+            backdrop-filter: blur(5px) !important;
+            border-radius: 8px !important;
+            margin: 5px 0 !important;
+            padding: 10px !important;
+            transition: background-color 0.3s ease, background-color 0.3s ease !important;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05) !important;
+        }
+        
+        /* 微博Feed内容 - 内部容器保持透明 */
+        .wbpro-feed-content {
+            background-color: transparent !important;
+            border-radius: 0 !important;
+            padding: 8px !important;
+            box-shadow: none !important;
+        }
+        
+        /* 具体的长选择器 - 完全匹配原始选择器内容 */
+        #scroller > div.vue-recycle-scroller__item-wrapper > div > div > article > div.Feed_body_3R0rO > div.wbpro-feed-content {
+            background-color: transparent !important;
+            border-radius: 0 !important;
+        }
+        
+        /* Feed容器的通用选择器 - 内部容器保持透明 */
+        article div[class*="feed-content"],
+        article div[class*="Feed_body"] > div {
+            background-color: transparent !important;
+            box-shadow: none !important;
+        }
+        
+        /* 其他微博样式 */
+        .wb-item .content,
+        .card-wrap .card-feed {
+            background-color: rgba(255, 255, 255, ${contentOpacity}) !important;
+            backdrop-filter: blur(5px) !important;
+            border-radius: 8px !important;
+            margin: 5px !important;
+            padding: 10px !important;
+        }
+        
+        /* 深色模式适配 - 整体容器 */
+        html.woo-theme-dark #scroller > div.vue-recycle-scroller__item-wrapper > div > div > article,
+        html.woo-theme-dark #scroller > div.vue-recycle-scroller__item-wrapper > div:nth-child(n) > div > article {
+            background-color: rgba(30, 30, 30, ${darkOpacity}) !important;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
+        }
+        
+        /* 深色模式适配 - 内部容器 */
+        html.woo-theme-dark .wbpro-feed-content,
+        html.woo-theme-dark article div[class*="feed-content"],
+        html.woo-theme-dark article div[class*="Feed_body"] > div {
+            background-color: transparent !important;
+            box-shadow: none !important;
+        }
+        
+        /* 深色模式适配 - 其他容器 */
+        html.woo-theme-dark .wb-item .content,
+        html.woo-theme-dark .card-wrap .card-feed {
+            background-color: rgba(30, 30, 30, ${darkOpacity}) !important;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
+        }
+    `;
+      // 样式已在前面添加到文档，这里不需要再添加
+    console.log('[微博背景] 已添加微博内容半透明样式');
+    
+    // 使用MutationObserver监听新添加的内容并应用样式
+    setupContentObserver();
+}
+
+/**
+ * 设置内容观察器，监视新添加的微博内容并应用半透明样式
+ */
+function setupContentObserver() {
+    // 如果已经有观察器，先移除
+    if (window.__weiboContentObserver) {
+        window.__weiboContentObserver.disconnect();
+        window.__weiboContentObserver = null;
+    }
+    
+    // 如果背景或内容透明度未启用，不设置观察器
+    if (!backgroundStore.enabled || !backgroundStore.content_transparency) {
+        return;
+    }
+    
+    // 创建观察器
+    const observer = new MutationObserver((mutations) => {
+        let hasNewContent = false;
+        
+        // 检查所有变动
+        for (const mutation of mutations) {
+            // 检查添加的节点
+            if (mutation.addedNodes && mutation.addedNodes.length > 0) {
+                for (const node of mutation.addedNodes) {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        // 查找节点内的微博文章元素
+                        const articles = node.querySelectorAll('article, #scroller > div.vue-recycle-scroller__item-wrapper > div > div > article');
+                        if (articles.length > 0) {
+                            hasNewContent = true;
+                            
+                            // 将样式直接应用到文章元素
+                            articles.forEach(element => {
+                                // 获取当前主题和用户设置的透明度
+                                const isDarkMode = document.documentElement.classList.contains('woo-theme-dark');
+                                const contentOpacity = backgroundStore.content_opacity;
+                                const bgColor = isDarkMode ? 
+                                    `rgba(30, 30, 30, ${contentOpacity})` : 
+                                    `rgba(255, 255, 255, ${contentOpacity})`;
+                                
+                                // 首先尝试使用dataset检查是否已应用样式及透明度
+                                const currentOpacity = element.dataset.appliedOpacity;
+                                
+                                // 如果透明度值不同或未应用，则应用新样式
+                                if (!currentOpacity || parseFloat(currentOpacity) !== contentOpacity) {
+                                    console.log('[微博背景] 更新文章容器透明度:', contentOpacity);
+                                    // 应用内联样式到文章容器
+                                    element.style.backgroundColor = bgColor;
+                                    element.style.backdropFilter = 'blur(5px)';
+                                    element.style.borderRadius = '8px';
+                                    element.style.margin = '5px 0';
+                                    element.style.padding = '10px';
+                                    element.style.transition = 'background-color 0.3s ease';
+                                    element.style.boxShadow = isDarkMode ? 
+                                        '0 2px 10px rgba(0, 0, 0, 0.2)' : 
+                                        '0 2px 10px rgba(0, 0, 0, 0.05)';
+                                    
+                                    // 确保内部内容容器是透明的
+                                    const innerContents = element.querySelectorAll('.wbpro-feed-content, [class*="feed-content"], [class*="Feed_body"] > div');
+                                    innerContents.forEach(inner => {
+                                        inner.style.backgroundColor = 'transparent';
+                                        inner.style.boxShadow = 'none';
+                                        inner.style.borderRadius = '0';
+                                    });
+                                    
+                                    // 标记已应用的透明度
+                                    element.dataset.appliedOpacity = contentOpacity.toString();
+                                }
+                            });
+                        }
+                        
+                        // 查找其他类型的内容容器（针对旧版微博或其他页面）
+                        const otherContents = node.querySelectorAll('.wb-item .content, .card-wrap .card-feed');
+                        if (otherContents.length > 0) {
+                            hasNewContent = true;
+                        }
+                    }
+                        
+                        // 查找其他类型的内容容器（针对旧版微博或其他页面）
+                        const otherContents = node.querySelectorAll('.wb-item .content, .card-wrap .card-feed');
+                        if (otherContents.length > 0) {
+                            hasNewContent = true;
+                            // 将样式应用到其他内容容器                            
+                            otherContents.forEach(element => {
+                                const isDarkMode = document.documentElement.classList.contains('woo-theme-dark');
+                                const contentOpacity = backgroundStore.content_opacity;
+                                const bgColor = isDarkMode ? 
+                                    `rgba(30, 30, 30, ${contentOpacity})` : 
+                                    `rgba(255, 255, 255, ${contentOpacity})`;
+                                
+                                // 检查是否需要更新
+                                const currentOpacity = element.dataset.appliedOpacity;
+                                if (!currentOpacity || parseFloat(currentOpacity) !== contentOpacity) {
+                                    element.style.backgroundColor = bgColor;
+                                    element.style.backdropFilter = 'blur(5px)';
+                                    element.style.borderRadius = '8px';
+                                    element.style.margin = '5px';
+                                    element.style.padding = '10px';
+                                    element.style.boxShadow = isDarkMode ? 
+                                        '0 2px 10px rgba(0, 0, 0, 0.2)' : 
+                                        '0 2px 10px rgba(0, 0, 0, 0.05)';
+                                    
+                                    // 标记已应用的透明度
+                                    element.dataset.appliedOpacity = contentOpacity.toString();
+                                }
+                            });
+                        }
+                    }
+                }
+            }        
+        // 如果有新内容，重新应用容器样式
+        if (hasNewContent) {
+            console.log('[微博背景] 检测到新内容，重新应用容器样式');
+            forceApplyContainerStyles();
+        }
+    });
+    
+    // 配置观察选项
+    const config = { 
+        childList: true,  // 观察直接子节点变化
+        subtree: true,    // 观察所有后代节点
+        attributes: false  // 不观察属性变化
+    };
+    
+    // 开始观察整个文档
+    observer.observe(document.body, config);
+    
+    // 保存观察器引用
+    window.__weiboContentObserver = observer;
+    console.log('[微博背景] 已设置内容观察器');
+}
+
+// 确保页面加载完成后添加样式
+function ensureContentTransparency() {
+    // 立即添加一次
+    addContentTransparencyStyles();
+    
+    // DOM就绪时添加
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            addContentTransparencyStyles();
+        });
+    }
+    
+    // 页面完全加载后再次添加以确保应用到所有内容
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            addContentTransparencyStyles();
+        }, 1000);
+    });
+    
+    // 处理微博的单页应用路由变化
+    const originalPushState = window.history.pushState;
+    window.history.pushState = function() {
+        originalPushState.apply(this, arguments);
+        // 路由变化后添加延迟，确保新内容已加载
+        setTimeout(() => {
+            addContentTransparencyStyles();
+        }, 500);
+    };
+}
+
+// 初始化时添加样式
+ensureContentTransparency();
+
+/**
+ * 设置内容的透明度
+ * @param {number} opacity 透明度值，0-1之间
+ * @returns {boolean} 是否设置成功
+ */
+export function setContentOpacity(opacity) {
+    // 验证透明度值
+    if (typeof opacity !== 'number' || opacity < 0 || opacity > 1) {
+        console.error('[微博背景] 无效的内容透明度值:', opacity);
+        return false;
+    }
+    
+    // 更新存储的透明度值
+    backgroundStore.content_opacity = opacity;
+    saveBackgroundConfig();
+    console.log(`[微博背景] 内容透明度已设置为: ${opacity}`);
+    
+    // 重新应用样式
+    addContentTransparencyStyles();
+    
+    // 同时更新DOM中已存在的元素，确保实时生效
+    if (backgroundStore.enabled && backgroundStore.content_transparency) {
+        try {
+            // 应用到所有文章元素
+            const articles = document.querySelectorAll('article, #scroller > div.vue-recycle-scroller__item-wrapper > div > div > article');
+            const isDarkMode = document.documentElement.classList.contains('woo-theme-dark');
+            const bgColor = isDarkMode ? 
+                `rgba(30, 30, 30, ${opacity})` : 
+                `rgba(255, 255, 255, ${opacity})`;
+                
+            articles.forEach(element => {
+                if (element) {
+                    element.style.backgroundColor = bgColor;
+                    element.dataset.appliedOpacity = opacity.toString();
+                }
+            });
+            
+            // 应用到其他内容元素
+            const otherContents = document.querySelectorAll('.wb-item .content, .card-wrap .card-feed');
+            otherContents.forEach(element => {
+                if (element) {
+                    element.style.backgroundColor = bgColor;
+                    element.dataset.appliedOpacity = opacity.toString();
+                }
+            });
+            
+            console.log(`[微博背景] 已更新 ${articles.length + otherContents.length} 个元素的透明度`);
+        } catch (error) {
+            console.error('[微博背景] 更新DOM元素透明度时出错:', error);
+        }
+    }
+    
+    return true;
 }

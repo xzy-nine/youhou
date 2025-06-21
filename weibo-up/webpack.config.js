@@ -7,7 +7,7 @@ const UserscriptMetaDataPlugin = require('userscript-metadata-webpack-plugin');
 const metadata = {
   name: '微博增强',
   namespace: 'http://tampermonkey.net/',  version: '1.0.4',
-  description: '微博增强功能：自动适应深色/浅色模式，弹出页查看更多评论，页面宽屏显示，UI高斯模糊效果',
+  description: '微博增强功能：自动适应深色/浅色模式，弹出页查看更多评论，页面宽屏显示，自定义背景图片',
   author: 'xzy-nine',
   match: [
     'https://*.weibo.com/*'
