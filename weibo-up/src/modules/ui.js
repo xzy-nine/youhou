@@ -3,8 +3,8 @@ import { widescreenStore, blurStore, saveWidescreenConfig, saveThemeConfig, save
 import { getCurrentWebsiteMode, setWebsiteMode } from './theme';
 import { controlPanelCSS } from '../styles/controlPanel';
 import { simpleNotify } from '../utils/notification';
-import { toggleGaussianBlur, setBlurIntensity } from './gaussianBlur';
-import { toggleBackgroundEnabled, setBackgroundType, uploadCustomBackground, setBackgroundOpacity, clearBingImageCache } from '../utils/background';
+import { toggleGaussianBlur, setBlurIntensity, applyGaussianBlurStyles } from './gaussianBlur';
+import { toggleBackgroundEnabled, setBackgroundType, uploadCustomBackground, setBackgroundOpacity, clearBingImageCache, applyBackground } from '../utils/background';
 
 // 创建统一控制面板
 export function createControlPanel() {
@@ -652,9 +652,8 @@ function bindBackgroundControlEvents(container) {  // 背景开关
       // 重新应用高斯模糊以更新背景
       if (blurStore.enabled) {
         // 直接重新应用背景 - 调用 applyBackground 而不是重复调用 toggleGaussianBlur
-        try {
-          // 确保模糊效果被应用
-          applyGaussianBlur();
+        try {          // 确保模糊效果被应用
+          applyGaussianBlurStyles();
           // 重新应用背景
           applyBackground();
         } catch (error) {
@@ -772,8 +771,7 @@ function bindBackgroundControlEvents(container) {  // 背景开关
       }
     });
   }
-  
-  if (customRadio) {
+    if (customRadio) {
     customRadio.addEventListener('change', (e) => {
       if (e.target.checked) {
         try {
@@ -795,10 +793,34 @@ function bindBackgroundControlEvents(container) {  // 背景开关
           // 禁用单选框，防止重复点击
           customRadio.disabled = true;
           if (bingRadio) bingRadio.disabled = true;
-            // 直接设置背景类型
-          setBackgroundType('custom');
-          // 重新应用背景
-          applyBackground();
+            
+          // 检查是否已有自定义图片URL
+          if (!blurStore.background_url || blurStore.background_url.trim() === '' || 
+              !blurStore.background_url.match(/^(data:|https?:\/\/)/i)) {
+            // 如果没有有效URL，先触发上传
+            uploadCustomBackground().then(success => {
+              if (success) {
+                // 如果上传成功，自动设置背景类型
+                console.log('[微博背景] 上传成功，设置为自定义类型');
+                setBackgroundType('custom');
+              } else {
+                // 如果用户取消上传，恢复UI状态并回退选项
+                console.log('[微博背景] 用户取消上传，恢复UI');
+                if (bingRadio) {
+                  bingRadio.checked = true;
+                  bingRadio.disabled = false;
+                }
+                customRadio.disabled = false;
+                const loadingEl = document.getElementById('custom-loading-msg');
+                if (loadingEl) loadingEl.remove();
+                return;
+              }
+            });
+          } else {
+            // 已有URL，直接设置背景类型
+            setBackgroundType('custom');
+          }
+          
           // 更新UI
           const subControlGroup = customRadio.closest('.sub-control-group');
           
@@ -822,23 +844,53 @@ function bindBackgroundControlEvents(container) {  // 背景开关
             } else {
               subControlGroup.appendChild(uploadButton);
             }
-            
-            // 绑定上传事件
+              // 绑定上传事件
             uploadButton.addEventListener('click', async () => {
               // 禁用按钮
               uploadButton.disabled = true;
               uploadButton.textContent = '上传中...';
               
               try {
+                // 确保单选框已选择自定义模式
+                if (!customRadio.checked) {
+                  customRadio.checked = true;
+                }
+                
+                // 调用上传函数
                 const success = await uploadCustomBackground();
+                
                 if (success) {
                   uploadButton.textContent = '上传成功';
+                  
+                  // 确保设置为自定义背景类型
+                  if (blurStore.background_type !== 'custom') {
+                    blurStore.background_type = 'custom';
+                    saveBlurConfig();
+                  }
+                  
+                  // 重新应用背景
+                  applyBackground();
+                  
                   setTimeout(() => {
                     uploadButton.disabled = false;
-                    uploadButton.textContent = '上传图片';
-                  }, 2000);
+                    uploadButton.textContent = '重新上传';
+                  }, 1500);
                 } else {
                   uploadButton.textContent = '上传取消';
+                  
+                  // 如果没有自定义图片但类型是custom，切回bing
+                  if (blurStore.background_type === 'custom' && 
+                      (!blurStore.background_url || blurStore.background_url.trim() === '')) {
+                    blurStore.background_type = 'bing';
+                    saveBlurConfig();
+                    
+                    // 恢复UI状态
+                    if (bingRadio) bingRadio.checked = true;
+                    
+                    // 重新应用背景
+                    applyBackground();
+                  }
+                  
                   setTimeout(() => {
                     uploadButton.disabled = false;
                     uploadButton.textContent = '上传图片';
@@ -909,16 +961,57 @@ function bindBackgroundControlEvents(container) {  // 背景开关
       }
     });
   }
-
   // 上传背景按钮
   const uploadButton = container.querySelector('#upload-background');
   if (uploadButton) {
     uploadButton.addEventListener('click', async () => {
-      const success = await uploadCustomBackground();
-      if (success) {
-        simpleNotify('图片上传成功，已应用为背景');
-      } else {
-        simpleNotify('图片上传取消或失败');
+      // 禁用按钮并显示状态
+      uploadButton.disabled = true;
+      uploadButton.textContent = '上传中...';
+      
+      try {
+        // 确保单选框已选择自定义模式
+        const customRadio = container.querySelector('#custom-background');
+        if (customRadio && !customRadio.checked) {
+          customRadio.checked = true;
+        }
+        
+        // 调用上传函数
+        const success = await uploadCustomBackground();
+        
+        if (success) {
+          uploadButton.textContent = '上传成功';
+          
+          // 确保设置为自定义背景类型
+          if (blurStore.background_type !== 'custom') {
+            blurStore.background_type = 'custom';
+            saveBlurConfig();
+          }
+          
+          simpleNotify('图片上传成功，已应用为背景');
+          
+          setTimeout(() => {
+            uploadButton.disabled = false;
+            uploadButton.textContent = '重新上传';
+          }, 1500);
+        } else {
+          uploadButton.textContent = '上传取消';
+          simpleNotify('图片上传已取消');
+          
+          setTimeout(() => {
+            uploadButton.disabled = false;
+            uploadButton.textContent = '上传图片';
+          }, 1000);
+        }
+      } catch (error) {
+        console.error('[微博增强] 上传图片出错:', error);
+        uploadButton.textContent = '上传失败';
+        simpleNotify('图片上传失败，请重试');
+        
+        setTimeout(() => {
+          uploadButton.disabled = false;
+          uploadButton.textContent = '重试上传';
+        }, 1000);
       }
     });
   }
@@ -1041,24 +1134,68 @@ export function registerMenus() {
     
     simpleNotify(blurStore.enabled ? '高斯模糊效果已启用' : '高斯模糊效果已关闭');
   });
-    GM_registerMenuCommand('重置所有设置', function() {
+  GM_registerMenuCommand('重置所有设置', function() {
     if (confirm('确定要重置所有设置吗？页面将会刷新。')) {
-      // 获取所有GM存储的键
-      const allKeys = GM_listValues();
-
-      // 清除所有GM存储的键值对
-      allKeys.forEach(key => {
-        console.log(`[微博增强] 正在删除配置项: ${key}`);
-        GM_deleteValue(key);
-      });
-      
-      // 通知用户
-      simpleNotify('所有设置已完全重置，配置已删除');
-      
-      // 刷新页面
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      try {
+        // 明确列出要删除的配置键
+        const configKeys = [
+          // 宽屏相关
+          'widescreen_enabled', 
+          'widescreen_loose', 
+          'widescreen_notify_enabled', 
+          'widescreen_ui_visible', 
+          'widescreen_panel_expanded', 
+          'widescreen_panel_position',
+          
+          // 高斯模糊相关
+          'blur_enabled', 
+          'blur_intensity', 
+          'blur_notify_enabled', 
+          'blur_background_enabled', 
+          'blur_background_type', 
+          'blur_background_url',
+          'blur_background_opacity',
+          
+          // 主题相关
+          'userOverride',
+          'userThemeMode',
+          
+          // 必应图片缓存
+          'weibo_bing_background'
+        ];
+        
+        // 删除指定的键值对
+        configKeys.forEach(key => {
+          console.log(`[微博增强] 正在删除配置项: ${key}`);
+          GM_deleteValue(key);
+        });
+        
+        // 尝试使用GM_listValues获取所有键并删除（以防有其他未知键）
+        if (typeof GM_listValues === 'function') {
+          try {
+            const remainingKeys = GM_listValues();
+            remainingKeys.forEach(key => {
+              if (key.includes('weibo') || key.includes('widescreen') || key.includes('blur')) {
+                console.log(`[微博增强] 删除其他相关配置: ${key}`);
+                GM_deleteValue(key);
+              }
+            });
+          } catch (e) {
+            console.warn('[微博增强] GM_listValues不可用，跳过未知键清理', e);
+          }
+        }
+        
+        // 通知用户
+        simpleNotify('所有设置已完全重置，配置已删除');
+        
+        // 刷新页面
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      } catch (error) {
+        console.error('[微博增强] 重置设置失败:', error);
+        simpleNotify('重置设置时发生错误，请查看控制台');
+      }
     }
   });
 }

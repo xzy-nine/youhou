@@ -29,6 +29,15 @@ export function applyGaussianBlurStyles() {
   styleElement.textContent = gaussianBlurCSS;
   document.head.appendChild(styleElement);
   
+  // 如果背景功能已启用，初始化时自动应用背景
+  // 使用延迟确保样式先应用完成
+  if (blurStore.background_enabled) {
+    console.log('[微博高斯模糊] 初始化时应用背景图片');
+    setTimeout(() => {
+      applyBackground();
+    }, 100);
+  }
+  
   // 应用背景（如果启用）
   applyBackground();
   
@@ -53,6 +62,14 @@ export function toggleGaussianBlur() {
       console.log('[微博高斯模糊] 功能已禁用，移除背景元素');
       backgroundElement.remove();
     }
+  } 
+  // 当启用高斯模糊时，如果背景功能也启用，则应用背景
+  else if (blurStore.background_enabled) {
+    console.log('[微博高斯模糊] 功能已启用，自动应用背景');
+    // 使用延迟确保样式先应用
+    setTimeout(() => {
+      applyBackground();
+    }, 50);
   }
   
   // 分发自定义事件，通知其他模块状态变化

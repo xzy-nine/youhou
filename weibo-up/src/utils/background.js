@@ -247,108 +247,183 @@ function fileToDataUrl(file) {
 function createFileSelector() {
     return new Promise((resolve) => {
         try {
-            // 使用油猴API直接调用文件选择
-            if (typeof GM_openInTab === 'function') {
-                console.log('[微博背景] 尝试使用油猴API进行文件选择');
-                
-                // 创建一个隐藏的文件输入
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = 'image/*';
-                input.style.position = 'fixed';
-                input.style.top = '-1000px';
-                document.body.appendChild(input);
-                
-                // 添加事件监听
-                input.addEventListener('change', async (event) => {
-                    const file = event.target.files[0];
-                    if (file) {
-                        try {
-                            const dataUrl = await fileToDataUrl(file);
-                            input.remove();
-                            resolve(dataUrl);
-                        } catch (error) {
-                            console.error('[微博背景] 读取文件失败：', error);
-                            input.remove();
-                            simpleNotify('读取图片失败，请重试或尝试直接输入图片URL');
-                            resolve(null);
+            console.log('[微博背景] 创建文件选择器');
+            
+            // 创建一个更简单更可靠的选择器界面
+            const overlay = document.createElement('div');
+            overlay.setAttribute('id', 'weibo-image-selector-overlay');
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.7);
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            `;
+            
+            const uploader = document.createElement('div');
+            uploader.setAttribute('id', 'weibo-image-uploader');
+            uploader.style.cssText = `
+                width: 350px;
+                padding: 20px;
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+                text-align: center;
+            `;
+            
+            uploader.innerHTML = `
+                <h3 style="margin-top:0;color:#333;font-size:16px;">选择背景图片</h3>
+                <p style="color:#666;margin-bottom:15px;font-size:14px;">选择本地图片或输入图片URL</p>
+                <div style="margin:20px 0;display:flex;flex-direction:column;gap:10px;">
+                    <button id="weibo-upload-file-btn" style="width:100%;padding:10px;background:#1890ff;color:white;border:none;border-radius:4px;cursor:pointer;font-size:14px;">选择本地图片</button>
+                    <button id="weibo-url-input-btn" style="width:100%;padding:10px;background:#f0f0f0;color:#333;border:1px solid #d9d9d9;border-radius:4px;cursor:pointer;font-size:14px;">输入图片URL</button>
+                    <button id="weibo-cancel-upload-btn" style="width:100%;padding:10px;background:#fff;color:#999;border:1px solid #d9d9d9;border-radius:4px;cursor:pointer;font-size:14px;margin-top:5px;">取消</button>
+                </div>
+                <div id="weibo-upload-status" style="margin-top:15px;padding:10px;font-size:13px;color:#ff8800;display:none;background:#fffbe6;border-radius:4px;"></div>
+            `;
+            
+            // 添加到DOM
+            overlay.appendChild(uploader);
+            document.body.appendChild(overlay);
+            
+            // 创建隐藏的文件输入
+            const input = document.createElement('input');
+            input.setAttribute('id', 'weibo-file-input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.style.cssText = 'position:absolute;top:-9999px;left:-9999px;';
+            document.body.appendChild(input);
+            
+            // 设置状态显示
+            const statusElem = uploader.querySelector('#weibo-upload-status');
+            
+            // 显示状态消息的函数
+            const showStatus = (message, isError = false) => {
+                statusElem.textContent = message;
+                statusElem.style.display = 'block';
+                statusElem.style.color = isError ? '#ff4d4f' : '#ff8800';
+                statusElem.style.background = isError ? '#fff2f0' : '#fffbe6';
+                statusElem.style.border = isError ? '1px solid #ffccc7' : '1px solid #ffe58f';
+            };
+            
+            // 按钮事件 - 取消
+            uploader.querySelector('#weibo-cancel-upload-btn').addEventListener('click', () => {
+                overlay.remove();
+                input.remove();
+                resolve(null);
+            });
+            
+            // 按钮事件 - 选择本地文件
+            uploader.querySelector('#weibo-upload-file-btn').addEventListener('click', () => {
+                // 使用最简单的方法
+                try {
+                    input.click();
+                } catch (e) {
+                    console.error('[微博背景] 点击文件输入失败:', e);
+                    showStatus('无法打开文件选择器，请尝试输入URL', true);
+                    
+                    // 如果点击失败，自动切换到URL输入
+                    setTimeout(async () => {
+                        overlay.remove();
+                        input.remove();
+                        const imageUrl = await getImageUrlFromUser();
+                        resolve(imageUrl);
+                    }, 2000);
+                }
+            });
+            
+            // 按钮事件 - 输入URL
+            uploader.querySelector('#weibo-url-input-btn').addEventListener('click', async () => {
+                overlay.remove();
+                input.remove();
+                const imageUrl = await getImageUrlFromUser();
+                resolve(imageUrl);
+            });
+            
+            // 监听文件选择
+            input.addEventListener('change', async () => {
+                try {
+                    const file = input.files && input.files[0];
+                    if (!file) {
+                        showStatus('未选择文件', true);
+                        return;
+                    }
+                    
+                    // 验证文件大小 (最大10MB)
+                    if (file.size > 10 * 1024 * 1024) {
+                        showStatus('文件太大，请选择小于10MB的图片', true);
+                        return;
+                    }
+                    
+                    // 验证文件类型
+                    if (!file.type.match('image.*')) {
+                        showStatus('请选择图片文件', true);
+                        return;
+                    }
+                    
+                    console.log('[微博背景] 文件已选择:', file.name, file.type, Math.round(file.size/1024), 'KB');
+                    showStatus('正在处理图片，请稍候...');
+                    
+                    try {
+                        const dataUrl = await fileToDataUrl(file);
+                        
+                        // 验证数据URL
+                        if (!dataUrl || !dataUrl.startsWith('data:image/')) {
+                            showStatus('图片处理失败，请重试', true);
+                            return;
                         }
-                    } else {
+                        
+                        // 成功读取文件
+                        overlay.remove();
                         input.remove();
-                        resolve(null);
+                        resolve(dataUrl);
+                    } catch (readError) {
+                        console.error('[微博背景] 读取文件失败:', readError);
+                        showStatus('读取图片失败，请重试或选择其他图片', true);
                     }
-                });
-                
-                // 模拟点击打开文件选择器
-                console.log('[微博背景] 触发文件选择器点击');
-                input.click();
-                
-                // 处理取消选择的情况
-                setTimeout(() => {
-                    if (input && document.body.contains(input) && input.files.length === 0) {
-                        console.log('[微博背景] 文件选择超时或取消');
-                        input.remove();
-                        resolve(null);
-                    }
-                }, 60000); // 1分钟超时
-            } else {
-                // 回退方法 - 创建普通的文件选择器
-                console.log('[微博背景] 使用标准DOM API进行文件选择');
-                
-                // 创建一个临时包装容器，确保元素添加到DOM中并可见
-                const wrapper = document.createElement('div');
-                wrapper.style.cssText = 'position: fixed; top: 10px; left: 10px; z-index: 9999; background: white; padding: 10px; border: 1px solid #ccc;';
-                wrapper.innerHTML = '<p>请选择背景图片：</p>';
-                document.body.appendChild(wrapper);
-                
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = 'image/*';
-                wrapper.appendChild(input);
-                
-                // 添加关闭按钮
-                const closeBtn = document.createElement('button');
-                closeBtn.textContent = '取消';
-                closeBtn.style.marginLeft = '10px';
-                wrapper.appendChild(closeBtn);
-                
-                closeBtn.onclick = () => {
-                    wrapper.remove();
+                } catch (e) {
+                    console.error('[微博背景] 处理文件选择时出错:', e);
+                    showStatus('处理文件失败', true);
+                }
+            });
+            
+            // 添加ESC键关闭
+            const escKeyHandler = (e) => {
+                if (e.key === 'Escape') {
+                    overlay.remove();
+                    input.remove();
+                    document.removeEventListener('keydown', escKeyHandler);
                     resolve(null);
-                };
-                
-                // 添加点击事件处理
-                input.onchange = async (e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                        try {
-                            const dataUrl = await fileToDataUrl(file);
-                            wrapper.remove();
-                            resolve(dataUrl);
-                        } catch (error) {
-                            console.error('[微博背景] 读取上传的文件失败:', error);
-                            simpleNotify('读取图片失败，请重试或尝试直接输入图片URL');
-                            wrapper.remove();
-                            resolve(null);
-                        }
-                    } else {
-                        wrapper.remove();
-                        resolve(null);
-                    }
-                };
-            }
+                }
+            };
+            document.addEventListener('keydown', escKeyHandler);
+            
+            // 添加超时处理
+            setTimeout(() => {
+                if (document.body.contains(overlay)) {
+                    console.log('[微博背景] 文件选择器超时，自动关闭');
+                    overlay.remove();
+                    input.remove();
+                    resolve(null);
+                }
+            }, 120000); // 2分钟超时
         } catch (error) {
             console.error('[微博背景] 创建文件选择器失败:', error);
             simpleNotify('无法打开文件选择对话框，将使用URL输入方式');
             
-            // 直接转到URL输入方式
-            setTimeout(() => {
-                resolve(null);
+            setTimeout(async () => {
+                const imageUrl = await getImageUrlFromUser();
+                resolve(imageUrl);
             }, 500);
         }
     });
 }
-
 /**
  * 根据当前设置获取背景图片URL
  * @returns {Promise<string|null>} 背景图片URL或null
@@ -362,8 +437,18 @@ export async function getBackgroundUrl() {
     // 根据背景类型获取URL
     if (blurStore.background_type === 'bing') {
         return await fetchBingImage();
-    } else if (blurStore.background_type === 'custom' && blurStore.background_url) {
-        return blurStore.background_url;
+    } else if (blurStore.background_type === 'custom') {
+        // 确认自定义URL存在且有效
+        if (blurStore.background_url && blurStore.background_url.trim() !== '') {
+            console.log('[微博背景] 使用自定义背景图片');
+            return blurStore.background_url;
+        } else {
+            console.log('[微博背景] 自定义背景URL无效，尝试切换到必应图片');
+            // 自动切换到必应
+            blurStore.background_type = 'bing';
+            saveBlurConfig();
+            return await fetchBingImage();
+        }
     }
     
     return null;
@@ -375,6 +460,31 @@ export async function getBackgroundUrl() {
  */
 export function setBackgroundType(type) {
     console.log('[微博背景] 设置背景类型为:', type);
+    
+    // 验证类型是否有效
+    if (type !== 'bing' && type !== 'custom') {
+        console.error('[微博背景] 无效的背景类型:', type);
+        simpleNotify('无效的背景类型，使用默认值');
+        type = 'bing';
+    }
+    
+    // 验证自定义类型是否有URL（如果是自定义类型）
+    if (type === 'custom' && (!blurStore.background_url || blurStore.background_url.trim() === '')) {
+        // 如果没有自定义URL但用户想切换到自定义模式，先弹出上传对话框
+        console.log('[微博背景] 切换到自定义模式但缺少URL，将触发上传流程');
+        // 延迟执行，保存配置但稍后触发上传
+        setTimeout(() => {
+            uploadCustomBackground().then(success => {
+                if (!success) {
+                    // 如果用户取消了上传，回退到必应
+                    console.log('[微博背景] 用户取消上传，回退到必应图片');
+                    blurStore.background_type = 'bing';
+                    saveBlurConfig();
+                    applyBackground();
+                }
+            });
+        }, 100);
+    }
     
     // 显示加载提示
     simpleNotify(`正在切换到${type === 'bing' ? '必应每日图片' : '自定义图片'}...`);
@@ -447,27 +557,72 @@ export function setBackgroundOpacity(opacity) {
     if (backgroundElement) {
         console.log('[微博背景] 直接更新背景不透明度:', newOpacity);
         
-        // 强制使用!important确保样式被应用
-        backgroundElement.style.setProperty('opacity', newOpacity, 'important');
-        
-        // 额外调试 - 记录DOM更新后的实际计算样式
-        setTimeout(() => {
-            const computedOpacity = window.getComputedStyle(backgroundElement).opacity;
-            console.log(`[微博背景] 透明度设置后的计算样式: ${computedOpacity}`);
+        try {
+            // 尝试多种方式应用不透明度
+            // 1. 使用内联样式和!important
+            backgroundElement.style.setProperty('opacity', String(newOpacity), 'important');
             
-            // 如果计算样式与期望值不匹配，尝试强制重绘
-            if (Math.abs(parseFloat(computedOpacity) - newOpacity) > 0.01) {
-                console.log('[微博背景] 检测到透明度未正确应用，尝试强制重绘');
-                backgroundElement.style.display = 'none';
-                backgroundElement.offsetHeight; // 强制回流
-                backgroundElement.style.display = 'block';
-                backgroundElement.style.setProperty('opacity', newOpacity, 'important');
+            // 2. 添加特定的样式类
+            const styleId = 'weibo-bg-opacity-styles';
+            let styleElement = document.getElementById(styleId);
+            if (!styleElement) {
+                styleElement = document.createElement('style');
+                styleElement.id = styleId;
+                document.head.appendChild(styleElement);
             }
-        }, 50);
-        
-        // 显示反馈
-        if (Math.round(newOpacity * 100) % 10 === 0) { // 只在10%的倍数上显示通知
-            simpleNotify(`背景不透明度: ${Math.round(newOpacity * 100)}%`);
+            
+            // 使用时间戳保证选择器唯一性和优先级
+            const timestamp = Date.now();
+            const opacityClass = `weibo-bg-opacity-${timestamp}`;
+            
+            // 添加类到元素
+            backgroundElement.classList.add(opacityClass);
+            
+            // 删除所有其他opacity类
+            backgroundElement.className.split(' ').forEach(cls => {
+                if (cls !== opacityClass && cls.startsWith('weibo-bg-opacity-')) {
+                    backgroundElement.classList.remove(cls);
+                }
+            });
+            
+            // 添加高优先级CSS规则
+            styleElement.textContent = `
+                #weibo-blur-background.${opacityClass} {
+                    opacity: ${newOpacity} !important;
+                    filter: opacity(${newOpacity * 100}%) !important;
+                }
+            `;
+            
+            // 3. 直接操作计算样式后强制重绘
+            requestAnimationFrame(() => {
+                backgroundElement.style.opacity = String(newOpacity);
+                backgroundElement.style.filter = `opacity(${newOpacity * 100}%)`;
+                backgroundElement.offsetHeight; // 强制回流
+            });
+            
+            // 额外调试 - 记录DOM更新后的实际计算样式
+            setTimeout(() => {
+                const computedOpacity = window.getComputedStyle(backgroundElement).opacity;
+                console.log(`[微博背景] 透明度设置后的计算样式: ${computedOpacity}`);
+                
+                // 如果计算样式与期望值不匹配，尝试强制重绘
+                if (Math.abs(parseFloat(computedOpacity) - newOpacity) > 0.01) {
+                    console.log('[微博背景] 检测到透明度未正确应用，尝试强制重绘');
+                    backgroundElement.style.display = 'none';
+                    backgroundElement.offsetHeight; // 强制回流
+                    backgroundElement.style.display = 'block';
+                    backgroundElement.style.setProperty('opacity', String(newOpacity), 'important');
+                }
+            }, 50);
+            
+            // 显示反馈
+            if (Math.round(newOpacity * 100) % 10 === 0) { // 只在10%的倍数上显示通知
+                simpleNotify(`背景不透明度: ${Math.round(newOpacity * 100)}%`);
+            }
+        } catch (error) {
+            console.error('[微博背景] 设置透明度失败:', error);
+            // 失败时使用完全重新应用
+            applyBackground();
         }
     } else {
         // 如果背景元素不存在，则完全重新应用
@@ -567,73 +722,90 @@ export async function uploadCustomBackground() {
     try {
         simpleNotify('正在打开图片选择器...');
         
-        // 首先尝试文件选择器
-        const dataUrl = await createFileSelector();
-        if (dataUrl) {
-            console.log('[微博背景] 已获取图片数据，应用为背景');
+        // 创建一个Promise来处理图片选择过程
+        const imageResult = await new Promise(async (resolve) => {
+            // 首先尝试文件选择器
+            const dataUrl = await createFileSelector();
+            if (dataUrl) {
+                console.log('[微博背景] 已获取图片数据，应用为背景');
+                resolve({ type: 'dataUrl', url: dataUrl });
+                return;
+            }
             
-            // 显示加载中提示
-            simpleNotify('图片已选择，正在应用...');
+            console.log('[微博背景] 文件选择器未返回图片，尝试URL输入');
             
-            // 保存到配置
-            blurStore.background_url = dataUrl;
-            blurStore.background_type = 'custom';
-            saveBlurConfig();
+            // 如果文件选择器失败，提供URL输入作为备用
+            const imageUrl = await getImageUrlFromUser();
+            if (imageUrl) {
+                resolve({ type: 'url', url: imageUrl });
+                return;
+            }
             
-            // 预加载图片，确保能正常显示
+            resolve(null);
+        });
+        
+        if (!imageResult) {
+            console.log('[微博背景] 用户取消了图片选择');
+            return false;
+        }
+        
+        // 显示加载中提示
+        simpleNotify('图片已选择，正在应用...');
+        
+        // 保存到配置
+        blurStore.background_url = imageResult.url;
+        blurStore.background_type = 'custom';
+        saveBlurConfig();
+        
+        // 预加载图片，确保能正常显示
+        return new Promise((resolve) => {
             const img = new Image();
+            
             img.onload = () => {
+                console.log('[微博背景] 图片加载成功，尺寸:', img.width, 'x', img.height);
                 applyBackground();
                 simpleNotify('自定义背景图片应用成功');
+                resolve(true);
             };
+            
             img.onerror = () => {
-                console.error('[微博背景] 自定义图片加载失败');
+                console.error('[微博背景] 自定义图片加载失败:', imageResult.url.substring(0, 50) + '...');
                 simpleNotify('图片加载失败，请尝试其他图片');
                 
                 // 回退到必应图片
                 blurStore.background_type = 'bing';
                 saveBlurConfig();
                 applyBackground();
+                resolve(false);
             };
-            img.src = dataUrl;
             
-            return true;
-        }
-        
-        console.log('[微博背景] 文件选择器未返回图片，尝试URL输入');
-        
-        // 如果文件选择器失败，提供URL输入作为备用
-        const imageUrl = await getImageUrlFromUser();
-        if (imageUrl) {
-            simpleNotify('正在加载图片...');
+            // 设置3秒超时
+            const timeout = setTimeout(() => {
+                if (!img.complete) {
+                    console.error('[微博背景] 图片加载超时');
+                    img.src = ''; // 中断加载
+                    simpleNotify('图片加载超时，请尝试其他图片');
+                    
+                    // 回退到必应图片
+                    blurStore.background_type = 'bing';
+                    saveBlurConfig();
+                    applyBackground();
+                    resolve(false);
+                }
+            }, 10000);
             
-            // 保存到配置
-            blurStore.background_url = imageUrl;
-            blurStore.background_type = 'custom';
-            saveBlurConfig();
-            
-            // 验证URL可访问性
-            const img = new Image();
             img.onload = () => {
+                clearTimeout(timeout);
+                console.log('[微博背景] 图片加载成功');
                 applyBackground();
                 simpleNotify('自定义背景图片应用成功');
+                resolve(true);
             };
-            img.onerror = () => {
-                console.error('[微博背景] URL图片加载失败:', imageUrl);
-                simpleNotify('图片URL无法访问，请检查链接是否正确或尝试其他方式');
-                
-                // 自动切换到必应图片
-                blurStore.background_type = 'bing';
-                saveBlurConfig();
-                applyBackground();
-            };
-            img.src = imageUrl;
             
-            return true;
-        }
+            img.src = imageResult.url;
+        });
         
-        console.log('[微博背景] 用户取消了图片选择');
-        return false;
+        return true;
     } catch (error) {
         console.error('[微博背景] 上传图片失败:', error);
         simpleNotify('上传图片失败，请尝试直接输入图片URL');
@@ -668,8 +840,7 @@ export async function uploadCustomBackground() {
  * 应用背景图片
  */
 export async function applyBackground() {
-    console.log('[微博背景] 开始应用背景图片...');
-    try {
+    console.log('[微博背景] 开始应用背景图片...');    try {
         // 移除旧背景
         let backgroundElement = document.getElementById('weibo-blur-background');
         if (backgroundElement) {
@@ -677,16 +848,17 @@ export async function applyBackground() {
             console.log('[微博背景] 已移除旧背景元素');
         }
         
-        // 如果高斯模糊未启用，直接返回，不应用背景
-        if (!blurStore.enabled) {
-            console.log('[微博背景] 高斯模糊功能未启用，不应用背景');
-            return;
-        }
-        
         // 如果背景功能未启用，直接返回
         if (!blurStore.background_enabled) {
             console.log('[微博背景] 背景功能未启用，不应用背景');
             return;
+        }
+        
+        // 如果自定义背景类型但URL为空，自动切换到必应
+        if (blurStore.background_type === 'custom' && (!blurStore.background_url || blurStore.background_url.trim() === '')) {
+            console.log('[微博背景] 自定义背景URL为空，自动切换到必应背景');
+            blurStore.background_type = 'bing';
+            saveBlurConfig();
         }
         
         console.log('[微博背景] 当前背景设置:', {
@@ -894,21 +1066,23 @@ function setupBackgroundPersistence() {
     if (window.__weiboBackgroundObserver) {
         window.__weiboBackgroundObserver.disconnect();
     }
-    
-    // 定期检查背景是否可见
+      // 定期检查背景是否可见
     const periodicCheck = setInterval(() => {
-        const backgroundElement = document.getElementById('weibo-blur-background');
-        if (!backgroundElement && blurStore.background_enabled && blurStore.enabled) {
-            console.log('[微博背景] 定期检查: 背景元素丢失，重新应用背景');
-            applyBackground();
-        } else if (backgroundElement) {
-            // 检查是否可见 - 这里我们检查计算样式
-            const style = window.getComputedStyle(backgroundElement);
-            if (style.display === 'none' || parseFloat(style.opacity) === 0 || style.visibility === 'hidden') {
-                console.log('[微博背景] 定期检查: 背景元素不可见，重置样式');
-                backgroundElement.style.display = 'block';
-                backgroundElement.style.opacity = blurStore.background_opacity;
-                backgroundElement.style.visibility = 'visible';
+        // 如果背景功能和高斯模糊都启用，但背景元素丢失，则重新应用
+        if (blurStore.background_enabled && blurStore.enabled) {
+            const backgroundElement = document.getElementById('weibo-blur-background');
+            if (!backgroundElement) {
+                console.log('[微博背景] 定期检查: 背景元素丢失，重新应用背景');
+                applyBackground();
+            } else {
+                // 检查是否可见 - 这里我们检查计算样式
+                const style = window.getComputedStyle(backgroundElement);
+                if (style.display === 'none' || parseFloat(style.opacity) === 0 || style.visibility === 'hidden') {
+                    console.log('[微博背景] 定期检查: 背景元素不可见，重置样式');
+                    backgroundElement.style.display = 'block';
+                    backgroundElement.style.opacity = blurStore.background_opacity;
+                    backgroundElement.style.visibility = 'visible';
+                }
             }
         }
     }, 5000); // 每5秒检查一次
@@ -922,9 +1096,8 @@ function setupBackgroundPersistence() {
         if (window.__weiboBackgroundDebounce) {
             clearTimeout(window.__weiboBackgroundDebounce);
         }
-        
-        window.__weiboBackgroundDebounce = setTimeout(() => {
-            // 检查高斯模糊是否启用
+          window.__weiboBackgroundDebounce = setTimeout(() => {
+            // 检查高斯模糊和背景功能状态
             if (!blurStore.enabled) {
                 // 如果高斯模糊未启用，移除背景元素
                 const backgroundElement = document.getElementById('weibo-blur-background');
@@ -935,12 +1108,15 @@ function setupBackgroundPersistence() {
                 return;
             }
             
-            // 检查背景元素是否还存在
-            const backgroundElement = document.getElementById('weibo-blur-background');
-            if (!backgroundElement && blurStore.background_enabled && blurStore.enabled) {
-                console.log('[微博背景] 检测到背景元素丢失，重新应用背景');
-                applyBackground();
-                return;
+            // 同时检查高斯模糊和背景功能是否都启用
+            if (blurStore.enabled && blurStore.background_enabled) {
+                // 检查背景元素是否还存在
+                const backgroundElement = document.getElementById('weibo-blur-background');
+                if (!backgroundElement) {
+                    console.log('[微博背景] 检测到背景元素丢失，重新应用背景');
+                    applyBackground();
+                    return;
+                }
             }
             
             // 如果背景元素存在但没有正确的样式，修复它

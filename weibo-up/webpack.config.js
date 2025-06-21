@@ -17,7 +17,10 @@ const metadata = {
     'GM_deleteValue',
     'GM_registerMenuCommand',
     'GM_addStyle',
-    'GM_xmlhttpRequest'
+    'GM_xmlhttpRequest',
+    'GM_getResourceURL',
+    'GM_openInTab',
+    'unsafeWindow'
   ],
   run_at: 'document-start',
   updateURL: 'https://gh-proxy.com/https://raw.githubusercontent.com/xzy-nine/youhou/main/weibo-up/dist/weibo-up.user.js',
