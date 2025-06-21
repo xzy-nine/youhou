@@ -1,51 +1,40 @@
-# 个人油猴脚本存储仓库
+# 个人浏览器扩展仓库
 
 ## 简介
 
-这是一个专门用于存储和管理个人自制油猴脚本（Tampermonkey/Greasemonkey 脚本）的仓库。所有脚本都是基于个人需求开发，用于增强网页功能、改善用户体验或解决特定问题。
+这是一个专门用于存储和管理个人自制浏览器扩展的仓库。所有扩展都是基于个人需求开发，用于增强网页功能、改善用户体验或解决特定问题。
 
 ## 仓库内容
 
-本仓库包含以下类型的脚本：
+本仓库包含以下类型的浏览器扩展：
 
-- 网页功能增强脚本
-- 用户界面优化脚本
-- 自动化操作脚本
-- 数据提取和处理脚本
-- 其他实用工具脚本
+- 网页功能增强扩展
+- 用户界面优化扩展
+- 自动化操作扩展
+- 数据提取和处理扩展
+- 其他实用工具扩展
 
-## 脚本列表
+## 扩展列表
 
 
-| 脚本名称 | 安装链接 | 功能描述                                                      | 适用网站  |
-| -------- | ------------ | ------------------------------------------------------------- | --------- |
-| 微博增强 | [安装脚本](https://gh-proxy.com/https://raw.githubusercontent.com/xzy-nine/youhou/main/weibo-up/dist/weibo-up.user.js) | 自动适应深色/浅色模式，评论悬浮窗，页面宽屏显示，支持扩展通知 | weibo.com |
+| 扩展名称 | 功能描述                                                      | 适用网站  |
+| -------- | ------------------------------------------------------------- | --------- |
+| 微博增强 | 自动适应深色/浅色模式，评论悬浮窗，页面宽屏显示，支持扩展通知 | weibo.com |
 
 ## 使用方法
 
-1. **安装油猴扩展**
+1. **安装Chrome扩展**
 
-   - Chrome: 安装 [Tampermonkey](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo)
-   - Firefox: 安装 [Tampermonkey](https://addons.mozilla.org/en-US/firefox/addon/tampermonkey/) 或 [Greasemonkey](https://addons.mozilla.org/en-US/firefox/addon/greasemonkey/)
-   - Edge: 安装 [Tampermonkey](https://microsoftedge.microsoft.com/addons/detail/tampermonkey/iikmkjmpaadaobahmlepeloendndfphd)
-2. **安装脚本**
+   - 下载对应扩展文件
+   - 打开Chrome浏览器，进入扩展管理页面（chrome://extensions/）
+   - 开启"开发者模式"（右上角）
+   - 点击"加载已解压的扩展"，选择相应扩展文件夹
+   
+2. **使用扩展**
 
-   方法一：自动安装（推荐）
-
-   - 点击上表中的"安装脚本"链接
-   - 油猴脚本管理器会自动弹出安装界面
-   - 点击"安装"或"确认安装"按钮完成安装
-
-   方法二：手动安装
-
-   - 点击对应的 `.js` 文件查看源码
-   - 复制脚本内容
-   - 在 Tampermonkey 管理界面创建新脚本
-   - 粘贴代码并保存
-3. **使用脚本**
-
-   - 访问对应的网站
-   - 脚本将自动运行（如果匹配 @match 规则）
+   - 安装完成后，点击浏览器右上角的扩展图标
+   - 根据需要调整扩展设置
+   - 访问对应网站，扩展将自动运行
 
 ## ⚠️ **免责声明**
 

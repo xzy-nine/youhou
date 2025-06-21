@@ -1,27 +1,17 @@
 {
   "name": "weibo-up",
   "version": "1.0.0",
-  "description": "微博增强脚本 - 深色模式、宽屏显示、评论悬浮窗等功能",
-  "main": "index.js",
+  "description": "微博增强扩展 - 深色模式、宽屏显示、评论悬浮窗等功能",
+  "main": "content.js",
   "scripts": {
-    "build": "webpack --mode production",
-    "dev": "webpack --mode development --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
-    "userscript",
-    "tampermonkey",
+    "chrome-extension",
     "weibo",
     "dark-mode",
     "widescreen"
   ],
   "author": "",
-  "license": "MIT",
-  "devDependencies": {
-    "webpack": "^5.88.2",
-    "webpack-cli": "^5.1.4",
-    "clean-webpack-plugin": "^4.0.0",
-    "terser-webpack-plugin": "^5.3.9",
-    "userscript-metadata-webpack-plugin": "^0.1.1"
-  }
+  "license": "MIT"
 }
