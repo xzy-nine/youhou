@@ -15,6 +15,10 @@ export const blurStore = {
   enabled: GM_getValue('blur_enabled', false),
   intensity: GM_getValue('blur_intensity', 5), // 模糊强度，默认5px
   notify_enabled: GM_getValue('blur_notify_enabled', true),
+  background_enabled: GM_getValue('blur_background_enabled', false), // 是否启用背景
+  background_type: GM_getValue('blur_background_type', 'bing'), // 背景类型：'bing'或'custom'
+  background_url: GM_getValue('blur_background_url', ''), // 自定义背景URL
+  background_opacity: GM_getValue('blur_background_opacity', 0.2), // 背景透明度
 };
 
 // 保存宽屏配置到GM存储
@@ -32,6 +36,10 @@ export function saveBlurConfig() {
   GM_setValue('blur_enabled', blurStore.enabled);
   GM_setValue('blur_intensity', blurStore.intensity);
   GM_setValue('blur_notify_enabled', blurStore.notify_enabled);
+  GM_setValue('blur_background_enabled', blurStore.background_enabled);
+  GM_setValue('blur_background_type', blurStore.background_type);
+  GM_setValue('blur_background_url', blurStore.background_url);
+  GM_setValue('blur_background_opacity', blurStore.background_opacity);
 }
 
 // 主题相关存储

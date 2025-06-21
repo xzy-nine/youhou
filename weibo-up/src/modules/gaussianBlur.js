@@ -2,6 +2,7 @@
 import { blurStore, saveBlurConfig } from '../utils/storage';
 import { gaussianBlurCSS } from '../styles/gaussianBlur';
 import { simpleNotify } from '../utils/notification';
+import { applyBackground } from '../utils/background';
 
 // 应用高斯模糊样式
 export function applyGaussianBlurStyles() {
@@ -28,6 +29,9 @@ export function applyGaussianBlurStyles() {
   styleElement.textContent = gaussianBlurCSS;
   document.head.appendChild(styleElement);
   
+  // 应用背景（如果启用）
+  applyBackground();
+  
   console.log(`[微博高斯模糊] 已应用模糊效果，强度: ${blurStore.intensity}px`);
   
   // 显示通知
@@ -41,6 +45,15 @@ export function toggleGaussianBlur() {
   blurStore.enabled = !blurStore.enabled;
   saveBlurConfig();
   applyGaussianBlurStyles();
+  
+  // 当禁用高斯模糊时，确保移除背景元素
+  if (!blurStore.enabled) {
+    const backgroundElement = document.getElementById('weibo-blur-background');
+    if (backgroundElement) {
+      console.log('[微博高斯模糊] 功能已禁用，移除背景元素');
+      backgroundElement.remove();
+    }
+  }
   
   // 分发自定义事件，通知其他模块状态变化
   document.dispatchEvent(new CustomEvent('blurChange', {
@@ -61,11 +74,30 @@ export function setBlurIntensity(value) {
   blurStore.intensity = Math.max(1, Math.min(15, intensity)); // 限制在1-15px范围内
   saveBlurConfig();
   
-  // 更新CSS变量
-  document.documentElement.style.setProperty('--wb-blur-intensity', `${blurStore.intensity}px`);
+  // 直接更新CSS变量，确保实时生效
+  try {
+    // 设置根元素CSS变量
+    document.documentElement.style.setProperty('--wb-blur-intensity', `${blurStore.intensity}px`);
+    
+    // 强制样式更新，确保所有使用该变量的元素都会立即重新应用样式
+    const blurElements = document.querySelectorAll('[style*="backdrop-filter"]');
+    blurElements.forEach(el => {
+      // 触发重绘
+      el.style.backdropFilter = `blur(${blurStore.intensity}px)`;
+      el.style.webkitBackdropFilter = `blur(${blurStore.intensity}px)`;
+    });
+    
+    console.log(`[微博高斯模糊] 已更新模糊强度: ${blurStore.intensity}px`);
+  } catch (error) {
+    console.error('[微博高斯模糊] 更新模糊强度失败:', error);
+  }
   
-  // 重新应用样式（如果已启用）
-  if (blurStore.enabled) {
+  // 是否需要完全重新应用样式
+  const needsFullReapply = intensity >= 10 || intensity <= 2; // 极端值时完全重新应用
+  
+  // 极端值时重新应用样式（如果已启用）
+  if (blurStore.enabled && needsFullReapply) {
+    console.log('[微博高斯模糊] 检测到极端值，完全重新应用样式');
     applyGaussianBlurStyles();
   }
   

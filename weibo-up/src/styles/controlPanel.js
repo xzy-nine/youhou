@@ -306,4 +306,57 @@ body.woo-theme-light .weibo-enhance-panel {
     opacity: 1 !important;
     height: auto !important;
 }
+
+/* 子控制组样式 */
+.weibo-enhance-panel .sub-control-group {
+    margin-top: 12px;
+    padding: 8px;
+    border: 1px solid var(--panel-border, #e1e8ed);
+    border-radius: 6px;
+    background-color: var(--panel-secondary-bg, rgba(245, 245, 245, 0.5));
+}
+
+.weibo-enhance-panel .sub-control-title {
+    font-size: 11px;
+    color: var(--panel-text-secondary, #666);
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+/* 单选框样式 */
+.weibo-enhance-panel .radio-control {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.weibo-enhance-panel .radio-control input[type="radio"] {
+    margin-right: 5px;
+}
+
+.weibo-enhance-panel .radio-control label {
+    margin-right: 12px;
+    font-size: 12px;
+    color: var(--panel-text, #333);
+    cursor: pointer;
+    flex: 0 0 auto;
+}
+
+/* 小按钮样式 */
+.weibo-enhance-panel .small-button {
+    font-size: 12px;
+    padding: 5px 10px;
+    margin: 5px 0;
+    background: var(--button-secondary-bg, #f0f7ff);
+    border: 1px solid var(--button-secondary-border, #95bfff);
+    color: var(--button-secondary-text, #1890ff);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.weibo-enhance-panel .small-button:hover {
+    background: var(--button-secondary-hover-bg, #e6f2ff);
+    border-color: var(--button-secondary-hover-border, #69a2ff);
+}
 `;

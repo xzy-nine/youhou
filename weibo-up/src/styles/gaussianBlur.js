@@ -1,120 +1,107 @@
-// 高斯模糊样式
+// 高斯模糊样式 - 使用F12精确选择的元素
 export const gaussianBlurCSS = `
 /* 全局CSS变量 */
 :root {
   --wb-blur-intensity: 5px;
 }
 
-/* 新版微博界面常见块元素模糊效果 */
-.Frame_content_3Q0J-,
-.Main_full_1dfQX,
-.Frame_side_2DhSN,
+/* 博文卡片模糊效果 - 主要元素 */
+#scroller > div.vue-recycle-scroller__item-wrapper > div > div > article,
+article.woo-panel-main,
+.woo-box-wrap,
+.Feed_wrap_K5pCu,
 .Card_wrap_2ibWe,
 .woo-panel-main,
-.woo-box-wrap,
-.woo-box-flex,
-.ProfileHeader_box_2t0AM,
 .wbpro-feed-content,
-.pic-beta-carousel,
-.picture_11lhb,
-.Article_articlePanel_30d3K,
-.Nav_wrap_vuYwf,
-.Search_searchItemsBox_13s0m,
-.Search_hotItemContainer_2GwRK,
-.LevelInfo_lev_3YJy5,
-.UserStats_wrap_3itlm,
-.UserAtt_wrap_GiJQu,
-[class*=Card_wrap],
-[class*=Feed_wrap],
-[class*=woo-panel],
-[class*=woo-modal-content],
-[class*=Detail_wrap] {
-  background-color: rgba(255, 255, 255, 0.7) !important;
+.wbpro-feed-item,
+.Main_full_2ntle article,
+.wbpro-side-main-wrap,
+.Main_side_oiMEU div,
+.woo-panel-main article {
+  background-color: rgba(255, 255, 255, 0.3) !important;  /* 更透明 */
   backdrop-filter: blur(var(--wb-blur-intensity)) !important;
   -webkit-backdrop-filter: blur(var(--wb-blur-intensity)) !important;
   border-radius: 8px;
-  transition: backdrop-filter 0.3s ease;
+  transition: backdrop-filter 0.3s ease, background-color 0.3s ease;
 }
 
-/* 深色模式下的调整 */
-.woo-theme-dark .Frame_content_3Q0J-,
-.woo-theme-dark .Main_full_1dfQX,
-.woo-theme-dark .Frame_side_2DhSN,
+/* 深色模式下博文卡片模糊效果 */
+.woo-theme-dark #scroller > div.vue-recycle-scroller__item-wrapper > div > div > article,
+.woo-theme-dark article.woo-panel-main,
+.woo-theme-dark .woo-box-wrap,
+.woo-theme-dark .Feed_wrap_K5pCu,
 .woo-theme-dark .Card_wrap_2ibWe,
 .woo-theme-dark .woo-panel-main,
-.woo-theme-dark .woo-box-wrap,
-.woo-theme-dark .woo-box-flex,
-.woo-theme-dark .ProfileHeader_box_2t0AM,
 .woo-theme-dark .wbpro-feed-content,
-.woo-theme-dark .pic-beta-carousel,
-.woo-theme-dark .picture_11lhb,
-.woo-theme-dark .Article_articlePanel_30d3K,
-.woo-theme-dark .Nav_wrap_vuYwf,
-.woo-theme-dark .Search_searchItemsBox_13s0m,
-.woo-theme-dark .Search_hotItemContainer_2GwRK,
-.woo-theme-dark .LevelInfo_lev_3YJy5,
-.woo-theme-dark .UserStats_wrap_3itlm,
-.woo-theme-dark .UserAtt_wrap_GiJQu,
-.woo-theme-dark [class*=Card_wrap],
-.woo-theme-dark [class*=Feed_wrap],
-.woo-theme-dark [class*=woo-panel],
-.woo-theme-dark [class*=woo-modal-content],
-.woo-theme-dark [class*=Detail_wrap] {
-  background-color: rgba(30, 30, 30, 0.7) !important;
+.woo-theme-dark .wbpro-feed-item,
+.woo-theme-dark .Main_full_2ntle article,
+.woo-theme-dark .wbpro-side-main-wrap,
+.woo-theme-dark .Main_side_oiMEU div,
+.woo-theme-dark .woo-panel-main article {
+  background-color: rgba(30, 30, 30, 0.3) !important;  /* 更透明 */
 }
 
-/* 旧版微博元素兼容 */
-.WB_frame,
-.WB_global_nav,
-.WB_main_c,
-.WB_frame_c,
-.WB_detail,
-.WB_text,
-.WB_feed_detail,
-.WB_media_wrap,
-.WB_feed_together,
-.WB_feed_expand,
-.WB_sonFeed {
-  background-color: rgba(255, 255, 255, 0.7) !important;
-  backdrop-filter: blur(var(--wb-blur-intensity)) !important;
-  -webkit-backdrop-filter: blur(var(--wb-blur-intensity)) !important;
-  border-radius: 8px;
-  transition: backdrop-filter 0.3s ease;
+/* 
+ * 高斯模糊应用模板
+ * 请使用F12开发者工具选择需要应用模糊效果的元素，然后添加对应的选择器
+ * 
+ * 示例:
+ * .your-element-class {
+ *   background-color: rgba(255, 255, 255, 0.4) !important;
+ *   backdrop-filter: blur(var(--wb-blur-intensity)) !important;
+ *   -webkit-backdrop-filter: blur(var(--wb-blur-intensity)) !important;
+ *   border-radius: 8px;
+ *   transition: backdrop-filter 0.3s ease;
+ * }
+ * 
+ * 深色模式示例:
+ * .woo-theme-dark .your-element-class {
+ *   background-color: rgba(30, 30, 30, 0.4) !important;
+ * }
+ */
+
+/* 背景图片样式 */
+html, body {
+  position: relative;
+  min-height: 100vh;
 }
 
-/* 针对滚动容器优化 */
-.woo-panel-main:not(.woo-box-overlay),
-.PicViewerDialog_picViewerContent_1e2Xs {
-  overflow: overlay !important;
+/* 为页面添加一个相对定位容器，确保内容正常显示 */
+.woo-box-flex, #homeWrap, #app, #react-root,
+html[data-react-helmet="true"] > body > div[id]:first-child {
+  position: relative;
+  z-index: 1;
 }
 
-/* 图片查看器特殊处理 */
-.woo-box-overlay-image {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-/* 保证内容可读性，文本区域不模糊 */
-.wbpro-feed-content p,
-.wbpro-feed-content a,
-.wbpro-text,
-.wbpro-text-content,
-.func-info,
-.woo-panel-main a,
-.text,
-.title,
-.username,
-.user-name,
-.nav-name {
-  text-shadow: 0 0 1px rgba(0, 0, 0, 0.1);
+/* 背景元素的基础样式 */
+#weibo-blur-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: -9999;
+  pointer-events: none;
+  will-change: opacity;
+  transition: opacity 0.5s ease, background-color 0.3s ease;
+  background-color: rgba(173, 216, 230, 0.3); /* 淡蓝色调试背景，加载图片前可见 */
 }
 
 /* 确保模糊不影响交互元素 */
 button, 
 input, 
 select, 
-textarea {
+textarea,
+a[href],
+[role="button"],
+[tabindex]:not([tabindex="-1"]) {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+  z-index: auto;
 }
 `;
