@@ -89,15 +89,15 @@ function updateUI() {
   
   // 背景选项显示状态
   document.getElementById('background-options').style.display = userSettings.background_enabled ? 'block' : 'none';
-  
-  // 背景来源
+    // 背景来源
   if (userSettings.background_type === 'bing') {
     document.getElementById('bing-background').checked = true;
+  } else if (userSettings.background_type === 'gradient') {
+    document.getElementById('gradient-background').checked = true;
   } else {
     document.getElementById('custom-background').checked = true;
   }
-  
-  document.getElementById('custom-url-container').style.display = 
+    document.getElementById('custom-url-container').style.display = 
     userSettings.background_type === 'custom' ? 'block' : 'none';
   document.getElementById('background-url').value = userSettings.background_url || '';
   
@@ -183,11 +183,19 @@ function setupEventListeners() {
     updateUI();
     sendMessageToContentScript({ action: 'updateBackground' });
   });
-  
-  document.getElementById('bing-background').addEventListener('change', () => {
+    document.getElementById('bing-background').addEventListener('change', () => {
     if (document.getElementById('bing-background').checked) {
       userSettings.background_type = 'bing';
       chrome.storage.local.set({ background_type: 'bing' });
+      document.getElementById('custom-url-container').style.display = 'none';
+      sendMessageToContentScript({ action: 'updateBackground' });
+    }
+  });
+  
+  document.getElementById('gradient-background').addEventListener('change', () => {
+    if (document.getElementById('gradient-background').checked) {
+      userSettings.background_type = 'gradient';
+      chrome.storage.local.set({ background_type: 'gradient' });
       document.getElementById('custom-url-container').style.display = 'none';
       sendMessageToContentScript({ action: 'updateBackground' });
     }

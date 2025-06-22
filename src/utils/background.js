@@ -114,25 +114,30 @@ async function applyBackground() {
         // 创建背景元素
         const backgroundElement = document.createElement('div');
         backgroundElement.className = 'weibo-up-background';
-        
-        // 基本样式
+          // 基本样式
         backgroundElement.style.cssText = `
             position: fixed !important;
             top: 0 !important;
             left: 0 !important;
             width: 100vw !important;
             height: 100vh !important;
-            z-index: -1000 !important;
+            z-index: -1 !important;
             pointer-events: none !important;
             background-attachment: fixed !important;
             background-position: center !important;
             background-repeat: no-repeat !important;
             background-size: cover !important;
         `;
-        
-        // 设置不透明度
-        const opacity = backgroundStore.opacity !== undefined ? backgroundStore.opacity : 0.3;
+          // 设置不透明度
+        const opacity = backgroundStore.opacity !== undefined ? backgroundStore.opacity : 0.2;
         backgroundElement.style.opacity = opacity.toString();
+        
+        // 立即添加到页面，确保在最底层
+        document.body.insertBefore(backgroundElement, document.body.firstChild);
+        
+        // 强制设置body的定位和背景
+        document.body.style.position = 'relative';
+        document.body.style.zIndex = '1';
         
         // 添加微博内容半透明样式
         addContentTransparencyStyles();
@@ -248,15 +253,11 @@ function addContentTransparencyStyles() {
     
     // 检测深色模式
     const isDarkMode = document.documentElement && document.documentElement.classList.contains('woo-theme-dark');
-    const bgColor = isDarkMode ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`;
-
-    // 为微博内容添加半透明背景的CSS
+    const bgColor = isDarkMode ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`;    // 为微博内容添加半透明背景的CSS
     existingStyle.textContent = `
-        /* 主要内容容器 */
+        /* 主要内容容器 - 仅针对微博文章 */
         article,
-        #scroller > div.vue-recycle-scroller__item-wrapper > div > div > article,
-        .wb-item .content,
-        .card-wrap .card-feed {
+        #scroller > div.vue-recycle-scroller__item-wrapper > div > div > article {
             background-color: ${bgColor} !important;
             backdrop-filter: blur(${blurPixels}px) !important;
             border-radius: 8px !important;
@@ -266,20 +267,57 @@ function addContentTransparencyStyles() {
             transition: backdrop-filter 0.3s ease, background-color 0.3s ease !important;
         }
         
-        /* 侧边栏和其他容器 */
-        .Left_left_2bwVX,
-        .Right_right_3CFhg,
-        .Frame_wrap_2j35t,
-        .nav {
-            background-color: ${bgColor} !important;
-            backdrop-filter: blur(${blurPixels}px) !important;
-            border-radius: 8px !important;
-            margin: 5px !important;
-            padding: 10px !important;
+        /* 确保页面主容器有正确的z-index */
+        #app,
+        #app > div {
+            position: relative !important;
+            z-index: 1 !important;
         }
     `;
 
     console.log('[微博背景] 半透明样式已应用');
+}
+
+/**
+ * 清理可能被错误应用的半透明效果
+ */
+function cleanupUnintendedTransparency() {
+    console.log('[微博背景] 开始清理意外的半透明效果...');
+    
+    // 获取所有应用了backdrop-filter的元素
+    const allElements = document.querySelectorAll('*');
+    let cleanedCount = 0;
+    
+    allElements.forEach(element => {
+        const style = window.getComputedStyle(element);
+        const hasBlur = style.backdropFilter && style.backdropFilter !== 'none';
+        
+        if (hasBlur) {
+            // 检查是否是预期的元素（微博文章）
+            const isArticle = element.tagName === 'ARTICLE';
+            const isInArticleContainer = element.closest('article');
+            const hasCorrectClass = element.classList.contains('weibo-up-background');
+            
+            // 如果不是预期的元素，清理其样式
+            if (!isArticle && !isInArticleContainer && !hasCorrectClass) {
+                // 检查是否是由我们的样式表应用的
+                const styleElement = document.getElementById('weibo-background-transparency-style');
+                if (styleElement) {
+                    // 重置这个元素的样式
+                    element.style.backdropFilter = '';
+                    element.style.backgroundColor = '';
+                    element.style.borderRadius = '';
+                    element.style.boxShadow = '';
+                    cleanedCount++;
+                    
+                    console.log('[微博背景] 清理了意外元素:', element.tagName, element.className);
+                }
+            }
+        }
+    });
+    
+    console.log(`[微博背景] 清理完成，共清理了 ${cleanedCount} 个元素`);
+    return cleanedCount;
 }
 
 /**
@@ -309,12 +347,34 @@ async function toggleBackgroundEnabled(enabled) {
  * @param {string} type 背景类型 ('bing', 'custom', 'gradient')
  */
 async function setBackgroundType(type) {
+    console.log('[微博背景] 设置背景类型为:', type);
+    
+    // 验证背景类型
+    const validTypes = ['bing', 'custom', 'gradient'];
+    if (!validTypes.includes(type)) {
+        console.error('[微博背景] 无效的背景类型:', type);
+        simpleNotify('无效的背景类型');
+        return;
+    }
+    
     backgroundStore.type = type;
     await saveBackgroundConfig();
     
+    // 确保背景功能已启用
+    if (!backgroundStore.enabled) {
+        backgroundStore.enabled = true;
+        await saveBackgroundConfig();
+        console.log('[微博背景] 自动启用背景功能');
+    }
+    
     if (backgroundStore.enabled) {
-        applyBackground();
-        simpleNotify(`已切换到${type === 'bing' ? '必应每日图片' : type === 'custom' ? '自定义图片' : '渐变'}背景`);
+        await applyBackground();
+        const typeNames = {
+            'bing': '必应每日图片',
+            'custom': '自定义图片',
+            'gradient': '渐变背景'
+        };
+        simpleNotify(`已切换到${typeNames[type]}`);
     }
 }
 
@@ -427,8 +487,32 @@ function diagnoseBackgroundStatus() {
     });
     console.log('3. DOM状态:', {
         readyState: document.readyState,
-        backgroundElement: !!document.querySelector('.weibo-up-background')
+        backgroundElement: !!document.querySelector('.weibo-up-background'),
+        transparencyStyle: !!document.getElementById('weibo-background-transparency-style'),
+        bodyPosition: window.getComputedStyle(document.body).position,
+        bodyZIndex: window.getComputedStyle(document.body).zIndex
     });
+    console.log('4. Chrome扩展相关:', {
+        runtimeId: chrome.runtime?.id,
+        canSendMessage: typeof chrome.runtime.sendMessage === 'function'
+    });
+    
+    // 检查现有背景元素
+    const bgElement = document.querySelector('.weibo-up-background');
+    if (bgElement) {
+        const computedStyle = window.getComputedStyle(bgElement);
+        console.log('5. 背景元素样式:', {
+            position: computedStyle.position,
+            zIndex: computedStyle.zIndex,
+            opacity: computedStyle.opacity,
+            backgroundImage: computedStyle.backgroundImage !== 'none' ? '已设置' : '未设置',
+            width: computedStyle.width,
+            height: computedStyle.height
+        });
+    } else {
+        console.log('5. 背景元素: 不存在');
+    }
+    
     console.log('[微博背景] 诊断报告结束');
 }
 
@@ -451,6 +535,68 @@ async function reapplyBackground() {
     if (typeof applyBackground === 'function') {
         await applyBackground();
         console.log('[微博背景] 背景重新应用完成');
+    }
+}
+
+/**
+ * 强制应用背景（不依赖存储状态检查）
+ */
+async function forceApplyBackground() {
+    console.log('[微博背景] 强制应用背景，忽略状态检查...');
+    
+    try {
+        // 移除现有背景元素
+        const existingBg = document.querySelector('.weibo-up-background');
+        if (existingBg) {
+            existingBg.remove();
+            console.log('[微博背景] 已移除现有背景元素');
+        }
+        
+        // 创建背景元素
+        const backgroundElement = document.createElement('div');
+        backgroundElement.className = 'weibo-up-background';
+        
+        // 应用强制样式
+        backgroundElement.style.cssText = `
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: -1 !important;
+            pointer-events: none !important;
+            background: linear-gradient(135deg, rgba(74, 144, 226, 0.3) 0%, rgba(80, 200, 120, 0.3) 100%) !important;
+            opacity: 0.5 !important;
+        `;
+        
+        // 立即添加到页面
+        document.body.insertBefore(backgroundElement, document.body.firstChild);
+        
+        // 确保body有正确的样式
+        document.body.style.position = 'relative';
+        document.body.style.zIndex = '1';
+        
+        console.log('[微博背景] 强制背景已应用（使用渐变色）');
+        
+        // 如果可能，尝试获取真实背景
+        if (backgroundStore && backgroundStore.enabled) {
+            const backgroundUrl = await getBackgroundUrl();
+            if (backgroundUrl) {
+                const img = new Image();
+                img.onload = () => {
+                    backgroundElement.style.backgroundImage = `url("${backgroundUrl}")`;
+                    backgroundElement.style.background = `url("${backgroundUrl}") center/cover no-repeat`;
+                    console.log('[微博背景] 已加载真实背景图片');
+                };
+                img.onerror = () => {
+                    console.log('[微博背景] 真实背景加载失败，保持渐变背景');
+                };
+                img.src = backgroundUrl;
+            }
+        }
+        
+    } catch (error) {
+        console.error('[微博背景] 强制应用背景失败:', error);
     }
 }
 
@@ -508,7 +654,9 @@ function exposeFunctionsToGlobal() {
     // 暴露诊断函数和重新应用函数到全局，方便调试
     window.diagnoseBackgroundStatus = diagnoseBackgroundStatus;
     window.reapplyBackground = reapplyBackground;
+    window.forceApplyBackground = forceApplyBackground;
     window.testBingAPI = testBingAPI;
+    window.cleanupUnintendedTransparency = cleanupUnintendedTransparency;
 
     // 暴露背景相关函数到全局，方便调试和控制台调用
     window.weiboApplyBackground = applyBackground;
@@ -521,7 +669,9 @@ function exposeFunctionsToGlobal() {
     console.log('[微博背景] 全局函数暴露完成:', {
         diagnoseBackgroundStatus: typeof window.diagnoseBackgroundStatus,
         reapplyBackground: typeof window.reapplyBackground,
+        forceApplyBackground: typeof window.forceApplyBackground,
         testBingAPI: typeof window.testBingAPI,
+        cleanupUnintendedTransparency: typeof window.cleanupUnintendedTransparency,
         weiboApplyBackground: typeof window.weiboApplyBackground,
         weiboToggleBackground: typeof window.weiboToggleBackground,
         weiboSetBackgroundType: typeof window.weiboSetBackgroundType,

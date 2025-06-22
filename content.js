@@ -16,8 +16,7 @@ async function initialize() {
 
     // 设置主题系统（优先初始化主题）
     setupThemeSystem();
-      
-    // 优先应用背景（如果启用）
+        // 优先应用背景（如果启用）
     // 这确保页面一开始就有背景，避免白屏
     if (typeof applyBackground === 'function') {
       // 确保存储初始化成功后再应用背景
@@ -26,8 +25,22 @@ async function initialize() {
           enabled: backgroundStore.enabled,
           type: backgroundStore.type
         });
-        await applyBackground();
-        console.log('[微博增强] 背景功能初始化完成');
+        
+        // 延迟一点时间确保DOM准备就绪
+        setTimeout(async () => {
+          try {
+            await applyBackground();
+            console.log('[微博增强] 背景功能初始化完成');
+          } catch (error) {
+            console.error('[微博增强] 背景应用失败:', error);
+            // 重试一次
+            setTimeout(() => {
+              if (typeof applyBackground === 'function') {
+                applyBackground().catch(e => console.error('[微博增强] 背景重试失败:', e));
+              }
+            }, 2000);
+          }
+        }, 100);
       } else {
         console.warn('[微博增强] 存储未正确初始化，跳过背景应用');
       }
@@ -65,16 +78,20 @@ async function initialize() {
     console.log('%c[微博增强] 功能已激活', 'color: #28a745; font-weight: bold;');
         // 将重新应用背景函数暴露到全局，方便用户手动调用
     if (typeof applyBackground === 'function') {
-      window.weiboApplyBackground = applyBackground;
-      
-      // 延迟一点时间后验证所有函数是否正确暴露
+      window.weiboApplyBackground = applyBackground;      // 延迟一点时间后验证所有函数是否正确暴露
       setTimeout(() => {
         const availableFunctions = [];
         if (typeof window.weiboApplyBackground === 'function') availableFunctions.push('weiboApplyBackground()');
         if (typeof window.diagnoseBackgroundStatus === 'function') availableFunctions.push('diagnoseBackgroundStatus()');
         if (typeof window.reapplyBackground === 'function') availableFunctions.push('reapplyBackground()');
+        if (typeof window.forceApplyBackground === 'function') availableFunctions.push('forceApplyBackground()');
+        if (typeof window.cleanupUnintendedTransparency === 'function') availableFunctions.push('cleanupUnintendedTransparency()');
         if (typeof window.weiboRefreshBingBackground === 'function') availableFunctions.push('weiboRefreshBingBackground()');
-        if (typeof window.weiboSetBackgroundType === 'function') availableFunctions.push('weiboSetBackgroundType("gradient")');
+        if (typeof window.weiboSetBackgroundType === 'function') {
+          availableFunctions.push('weiboSetBackgroundType("bing")');
+          availableFunctions.push('weiboSetBackgroundType("gradient")');
+          availableFunctions.push('weiboSetBackgroundType("custom")');
+        }
         
         console.log('%c[微博增强] 可用的调试命令:', 'color: #17a2b8; font-weight: bold;');
         availableFunctions.forEach(func => {
@@ -84,6 +101,8 @@ async function initialize() {
         if (availableFunctions.length === 0) {
           console.warn('%c[微博增强] 警告：调试函数未正确暴露，请刷新页面重试', 'color: #ffc107;');
         } else {
+          console.log('%c[微博增强] 背景图片获取正常，如有问题请先尝试 forceApplyBackground()', 'color: #28a745;');
+          console.log('%c[微博增强] 如发现多余元素被半透明化，请运行 cleanupUnintendedTransparency()', 'color: #ff6b35;');
           console.log('%c[微博增强] 更多设置请使用扩展图标的弹出页面', 'color: #6c757d; font-style: italic;');
         }
       }, 500);

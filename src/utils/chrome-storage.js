@@ -103,9 +103,8 @@ async function initStorage() {
       // 宽屏设置
     widescreenStore.enabled = allSettings.widescreen_enabled !== undefined ? allSettings.widescreen_enabled : true;
     widescreenStore.loose = allSettings.widescreen_loose || false;
-    widescreenStore.notify_enabled = allSettings.widescreen_notify_enabled || false;
-      // 背景设置
-    backgroundStore.enabled = allSettings.background_enabled || false;
+    widescreenStore.notify_enabled = allSettings.widescreen_notify_enabled || false;    // 背景设置
+    backgroundStore.enabled = allSettings.background_enabled !== undefined ? allSettings.background_enabled : false;
     backgroundStore.type = allSettings.background_type || 'bing';
     backgroundStore.url = allSettings.background_url || '';
     backgroundStore.opacity = allSettings.background_opacity !== undefined ? allSettings.background_opacity : 0.2;
@@ -118,7 +117,15 @@ async function initStorage() {
     backgroundStore.notify_enabled = allSettings.background_notify_enabled !== undefined ? 
                                 allSettings.background_notify_enabled : true;
     
-    console.log('[微博增强] 背景设置加载完成:', backgroundStore);
+    console.log('[微博增强] 背景设置加载完成:', {
+      enabled: backgroundStore.enabled,
+      type: backgroundStore.type,
+      opacity: backgroundStore.opacity,
+      content_transparency: backgroundStore.content_transparency,
+      content_opacity: backgroundStore.content_opacity,
+      content_blur: backgroundStore.content_blur,
+      hasCustomUrl: !!backgroundStore.url
+    });
     
     // 主题设置
     userOverride = allSettings.userOverride || false;
