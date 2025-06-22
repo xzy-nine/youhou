@@ -9,8 +9,7 @@ async function initialize() {
       await new Promise(resolve => {
         document.addEventListener('DOMContentLoaded', resolve);
       });
-    }
-      // 首先初始化存储
+    }    // 首先初始化存储
     const storageInitialized = await initStorage();
     console.log('[微博增强] 存储初始化结果:', storageInitialized);
 
@@ -26,11 +25,18 @@ async function initialize() {
           type: backgroundStore.type
         });
         
-        // 延迟一点时间确保DOM准备就绪
-        setTimeout(async () => {
+        // 确保DOM准备就绪后应用背景
+        const applyBackgroundWhenReady = async () => {
           try {
             await applyBackground();
             console.log('[微博增强] 背景功能初始化完成');
+            
+            // 如果启用了通知，显示成功消息
+            if (backgroundStore.enabled && backgroundStore.notify_enabled) {
+              setTimeout(() => {
+                simpleNotify('背景功能已激活');
+              }, 1000);
+            }
           } catch (error) {
             console.error('[微博增强] 背景应用失败:', error);
             // 重试一次
@@ -40,7 +46,14 @@ async function initialize() {
               }
             }, 2000);
           }
-        }, 100);
+        };
+        
+        // 如果DOM已准备就绪，立即应用；否则等待
+        if (document.readyState === 'loading') {
+          setTimeout(applyBackgroundWhenReady, 100);
+        } else {
+          applyBackgroundWhenReady();
+        }
       } else {
         console.warn('[微博增强] 存储未正确初始化，跳过背景应用');
       }
@@ -59,13 +72,19 @@ async function initialize() {
     }
       // 注意：悬浮控制面板已移除，现在只使用弹出页面的控制面板
     console.log('[微博增强] 悬浮控制面板已禁用，请使用扩展图标的弹出页面进行控制');
-    
-    // 在页面加载完成后再次应用背景，确保在所有DOM元素加载后背景依然存在
+      // 在页面加载完成后再次应用背景，确保在所有DOM元素加载后背景依然存在
     window.addEventListener('load', () => {
       // 重新应用背景
       setTimeout(() => {
-        if (typeof applyBackground === 'function') {
-          applyBackground();
+        if (typeof applyBackground === 'function' && backgroundStore && backgroundStore.enabled) {
+          // 检查背景元素是否还存在
+          const existingBg = document.querySelector('.weibo-up-background');
+          if (!existingBg) {
+            console.log('[微博增强] 页面加载完成后检测到背景丢失，重新应用');
+            applyBackground().catch(e => console.error('[微博增强] 页面加载后背景重新应用失败:', e));
+          } else {
+            console.log('[微博增强] 页面加载完成，背景元素正常存在');
+          }
         }
       }, 1000);
       
@@ -145,16 +164,36 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         applyWidescreenStyles();
       });
       break;
-      
-    case 'updateBackground':
+        case 'updateBackground':
       // 重新从存储获取设置并应用
       initStorage().then(() => {
         if (backgroundStore.enabled) {
-          applyBackground();
+          // 先移除现有背景，然后重新应用
+          const existingBg = document.querySelector('.weibo-up-background');
+          if (existingBg) {
+            existingBg.remove();
+          }
+          
+          // 延迟一点时间确保DOM清理完成
+          setTimeout(() => {
+            applyBackground().catch(error => {
+              console.error('[微博增强] 背景应用失败:', error);
+            });
+          }, 100);
         } else {
           // 移除背景
           const bg = document.querySelector('.weibo-up-background');
-          if (bg) bg.parentNode.removeChild(bg);
+          if (bg) {
+            bg.remove();
+          }
+          
+          // 移除内容半透明样式
+          const transparencyStyle = document.getElementById('weibo-background-transparency-style');
+          if (transparencyStyle) {
+            transparencyStyle.remove();
+          }
+          
+          console.log('[微博增强] 背景功能已禁用，相关样式已清理');
         }
       });
       break;
