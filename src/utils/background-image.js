@@ -504,15 +504,36 @@ function addContentTransparencyStyles() {
         existingStyle = document.createElement('style');
         existingStyle.id = styleId;
         document.head.appendChild(existingStyle);
-    }
-
-    // 获取用户设置的模糊程度和不透明度
+    }    // 获取用户设置的模糊程度和不透明度
     const blurPixels = backgroundStore.content_blur || 5;
     const opacity = backgroundStore.content_opacity !== undefined ? backgroundStore.content_opacity : 0.3;
     
-    // 检测深色模式
-    const isDarkMode = document.documentElement && document.documentElement.classList.contains('woo-theme-dark');
-    const bgColor = isDarkMode ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`;    // 为微博内容添加半透明背景的CSS
+    // 检测深色模式 - 支持多种深色主题类名
+    const isDarkMode = document.documentElement && (
+        document.documentElement.classList.contains('woo-theme-dark') ||
+        document.documentElement.classList.contains('dark') ||
+        document.documentElement.classList.contains('theme-dark') ||
+        document.documentElement.classList.contains('dark-mode') ||
+        document.body.classList.contains('woo-theme-dark') ||
+        document.body.classList.contains('dark') ||
+        document.body.classList.contains('theme-dark') ||
+        document.body.classList.contains('dark-mode') ||
+        // 检查CSS变量或计算样式
+        window.getComputedStyle(document.documentElement).backgroundColor.includes('rgb(0') ||
+        window.getComputedStyle(document.body).backgroundColor.includes('rgb(0')
+    );
+    
+    console.log('[微博背景] 深色模式检测结果:', {
+        isDarkMode: isDarkMode,
+        documentElement_classes: document.documentElement.className,
+        body_classes: document.body.className,
+        documentElement_bg: window.getComputedStyle(document.documentElement).backgroundColor,
+        body_bg: window.getComputedStyle(document.body).backgroundColor
+    });
+    
+    const bgColor = isDarkMode ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`;
+    
+    console.log('[微博背景] 应用背景颜色:', bgColor);// 为微博内容添加半透明背景的CSS
     existingStyle.textContent = `
         /* 主要内容容器 - 优先针对微博文章 */
         article,
@@ -773,8 +794,7 @@ function diagnoseBackgroundStatus() {
     // **新增**: 检查图片加载状态
     console.log('2. 图片加载状态检查:');
     console.log('   backgroundImageLoadState:', backgroundImageLoadState);
-    
-    // 3. 检查DOM状态
+      // 3. 检查DOM状态
     console.log('3. DOM状态检查:');
     const backgroundElement = document.querySelector('#weibo-blur-background');
     const transparencyStyle = document.getElementById('weibo-background-transparency-style');
@@ -783,6 +803,26 @@ function diagnoseBackgroundStatus() {
     console.log('   半透明样式是否存在:', !!transparencyStyle);
     console.log('   document.readyState:', document.readyState);
     console.log('   body.childElementCount:', document.body.childElementCount);
+    
+    // **新增**: 检查深色模式状态
+    const isDarkMode = document.documentElement && (
+        document.documentElement.classList.contains('woo-theme-dark') ||
+        document.documentElement.classList.contains('dark') ||
+        document.documentElement.classList.contains('theme-dark') ||
+        document.documentElement.classList.contains('dark-mode') ||
+        document.body.classList.contains('woo-theme-dark') ||
+        document.body.classList.contains('dark') ||
+        document.body.classList.contains('theme-dark') ||
+        document.body.classList.contains('dark-mode')
+    );
+    
+    console.log('   深色模式检测:', {
+        isDarkMode: isDarkMode,
+        documentElement_classes: document.documentElement.className,
+        body_classes: document.body.className,
+        documentElement_bg: window.getComputedStyle(document.documentElement).backgroundColor,
+        body_bg: window.getComputedStyle(document.body).backgroundColor
+    });
     
     if (backgroundElement) {
         const computedStyle = window.getComputedStyle(backgroundElement);
