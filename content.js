@@ -202,7 +202,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   sendResponse({success: true});
 });
 
-// 如果 background.js 中的函数没有正确暴露，提供备选的诊断函数
+// 如果 background-image.js 中的函数没有正确暴露，提供备选的诊断函数
 if (!window.diagnoseBackgroundStatus) {
   window.diagnoseBackgroundStatus = function() {
     console.log('[微博增强] 临时诊断函数启动');

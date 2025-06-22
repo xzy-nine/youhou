@@ -3,7 +3,7 @@
 // getCurrentWebsiteMode, setWebsiteMode 从theme.js全局获取
 // controlPanelCSS 从styles/controlPanel.js全局获取
 // simpleNotify 从notification.js全局获取
-// toggleBackgroundEnabled, setBackgroundType, uploadCustomBackground, setBackgroundOpacity, setContentOpacity, clearBingImageCache, applyBackground 从background.js全局获取
+// toggleBackgroundEnabled, setBackgroundType, uploadCustomBackground, setBackgroundOpacity, setContentOpacity, clearBingImageCache, applyBackground 从background-image.js全局获取
 
 // 创建统一控制面板
 function createControlPanel() {

@@ -29,11 +29,10 @@
     "https://api.kdcc.cn/*"
   ],"content_scripts": [
     {
-      "matches": ["https://*.weibo.com/*"],
-      "js": [
+      "matches": ["https://*.weibo.com/*"],      "js": [
         "src/utils/chrome-storage.js",
         "src/utils/notification.js",
-        "src/utils/background.js",
+        "src/utils/background-image.js",
         "src/styles/comments.js",
         "src/styles/widescreen.js",
         "src/modules/comments.js",
