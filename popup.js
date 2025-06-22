@@ -60,11 +60,14 @@ function updateUI() {
   const widescreenToggle = document.getElementById('widescreen-toggle');
   const widescreenStatus = document.getElementById('widescreen-status');
   const widescreenIndicator = widescreenToggle.querySelector('.status-indicator');
-  
-  widescreenToggle.className = userSettings.widescreen_enabled ? 'active' : '';
+    widescreenToggle.className = userSettings.widescreen_enabled ? 'active' : '';
   widescreenStatus.textContent = userSettings.widescreen_enabled ? '已开启' : '已关闭';
   widescreenIndicator.className = `status-indicator ${userSettings.widescreen_enabled ? 'on' : 'off'}`;
-  document.getElementById('widescreen-loose').checked = userSettings.widescreen_loose;
+  
+  const widescreenLooseCheckbox = document.getElementById('widescreen-loose');
+  if (widescreenLooseCheckbox) {
+    widescreenLooseCheckbox.checked = userSettings.widescreen_loose || false;
+  }
   
   // 更新主题按钮状态
   const themeToggle = document.getElementById('theme-toggle');
@@ -105,18 +108,42 @@ function updateUI() {
   const bgOpacityValue = Math.round(userSettings.background_opacity * 100);
   document.getElementById('background-opacity').value = bgOpacityValue;
   document.getElementById('background-opacity-value').textContent = `${bgOpacityValue}%`;
-  
   // 内容半透明设置
-  document.getElementById('content-transparency-toggle').checked = userSettings.background_content_transparency;
-  document.getElementById('content-opacity-container').style.display = 
-    userSettings.background_content_transparency ? 'block' : 'none';
+  const contentTransparencyToggle = document.getElementById('content-transparency-toggle');
+  if (contentTransparencyToggle) {
+    contentTransparencyToggle.checked = userSettings.background_content_transparency;
+    const contentOpacityContainer = document.getElementById('content-opacity-container');
+    const contentBlurContainer = document.getElementById('content-blur-container');
+    
+    if (contentOpacityContainer) {
+      contentOpacityContainer.style.display = userSettings.background_content_transparency ? 'block' : 'none';
+    }
+    if (contentBlurContainer) {
+      contentBlurContainer.style.display = userSettings.background_content_transparency ? 'block' : 'none';
+    }
+  }
   
   const contentOpacityValue = Math.round(userSettings.background_content_opacity * 100);
-  document.getElementById('content-opacity').value = contentOpacityValue;
-  document.getElementById('content-opacity-value').textContent = `${contentOpacityValue}%`;
+  const contentOpacityInput = document.getElementById('content-opacity');
+  const contentOpacityValueSpan = document.getElementById('content-opacity-value');
+  if (contentOpacityInput && contentOpacityValueSpan) {
+    contentOpacityInput.value = contentOpacityValue;
+    contentOpacityValueSpan.textContent = `${contentOpacityValue}%`;
+  }
   
+  // 内容模糊度设置
+  const contentBlurValue = userSettings.background_content_blur || 5;
+  const contentBlurInput = document.getElementById('content-blur');
+  const contentBlurValueSpan = document.getElementById('content-blur-value');
+  if (contentBlurInput && contentBlurValueSpan) {
+    contentBlurInput.value = contentBlurValue;
+    contentBlurValueSpan.textContent = `${contentBlurValue}px`;
+  }
   // 通知设置
-  document.getElementById('notification-toggle').checked = userSettings.widescreen_notify_enabled || false;
+  const notificationToggle = document.getElementById('notification-toggle');
+  if (notificationToggle) {
+    notificationToggle.checked = userSettings.widescreen_notify_enabled || userSettings.background_notify_enabled || false;
+  }
 }
 
 function setupEventListeners() {
@@ -127,8 +154,7 @@ function setupEventListeners() {
     updateUI();
     sendMessageToContentScript({ action: 'updateWidescreen' });
   });
-  
-  document.getElementById('widescreen-loose').addEventListener('change', (e) => {
+    document.getElementById('widescreen-loose').addEventListener('change', (e) => {
     userSettings.widescreen_loose = e.target.checked;
     chrome.storage.local.set({ widescreen_loose: e.target.checked });
     sendMessageToContentScript({ action: 'updateWidescreen' });
@@ -223,22 +249,36 @@ function setupEventListeners() {
     chrome.storage.local.set({ background_opacity: value });
     sendMessageToContentScript({ action: 'updateBackground' });
   });
-  
-  document.getElementById('content-transparency-toggle').addEventListener('change', (e) => {
+    document.getElementById('content-transparency-toggle').addEventListener('change', (e) => {
     userSettings.background_content_transparency = e.target.checked;
-    document.getElementById('content-opacity-container').style.display = e.target.checked ? 'block' : 'none';
+    const contentOpacityContainer = document.getElementById('content-opacity-container');
+    const contentBlurContainer = document.getElementById('content-blur-container');
+    
+    if (contentOpacityContainer) {
+      contentOpacityContainer.style.display = e.target.checked ? 'block' : 'none';
+    }
+    if (contentBlurContainer) {
+      contentBlurContainer.style.display = e.target.checked ? 'block' : 'none';
+    }
+    
     chrome.storage.local.set({ background_content_transparency: e.target.checked });
     sendMessageToContentScript({ action: 'updateBackground' });
   });
-  
-  document.getElementById('content-opacity').addEventListener('input', (e) => {
+    document.getElementById('content-opacity').addEventListener('input', (e) => {
     const value = parseInt(e.target.value) / 100;
     userSettings.background_content_opacity = value;
     document.getElementById('content-opacity-value').textContent = `${e.target.value}%`;
     chrome.storage.local.set({ background_content_opacity: value });
     sendMessageToContentScript({ action: 'updateBackground' });
   });
-    // 通知设置
+  
+  document.getElementById('content-blur').addEventListener('input', (e) => {
+    const value = parseInt(e.target.value);
+    userSettings.background_content_blur = value;
+    document.getElementById('content-blur-value').textContent = `${value}px`;
+    chrome.storage.local.set({ background_content_blur: value });
+    sendMessageToContentScript({ action: 'updateBackground' });
+  });// 通知设置 - 同时控制宽屏和背景通知
   document.getElementById('notification-toggle').addEventListener('change', (e) => {
     userSettings.widescreen_notify_enabled = e.target.checked;
     userSettings.background_notify_enabled = e.target.checked;
