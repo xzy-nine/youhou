@@ -76,9 +76,8 @@ async function initialize() {
     window.addEventListener('load', () => {
       // 重新应用背景
       setTimeout(() => {
-        if (typeof applyBackground === 'function' && backgroundStore && backgroundStore.enabled) {
-          // 检查背景元素是否还存在
-          const existingBg = document.querySelector('.weibo-up-background');
+        if (typeof applyBackground === 'function' && backgroundStore && backgroundStore.enabled) {          // 检查背景元素是否还存在
+          const existingBg = document.querySelector('#weibo-blur-background');
           if (!existingBg) {
             console.log('[微博增强] 页面加载完成后检测到背景丢失，重新应用');
             applyBackground().catch(e => console.error('[微博增强] 页面加载后背景重新应用失败:', e));
@@ -167,9 +166,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         case 'updateBackground':
       // 重新从存储获取设置并应用
       initStorage().then(() => {
-        if (backgroundStore.enabled) {
-          // 先移除现有背景，然后重新应用
-          const existingBg = document.querySelector('.weibo-up-background');
+        if (backgroundStore.enabled) {          // 先移除现有背景，然后重新应用
+          const existingBg = document.querySelector('#weibo-blur-background');
           if (existingBg) {
             existingBg.remove();
           }
@@ -180,9 +178,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               console.error('[微博增强] 背景应用失败:', error);
             });
           }, 100);
-        } else {
-          // 移除背景
-          const bg = document.querySelector('.weibo-up-background');
+        } else {          // 移除背景
+          const bg = document.querySelector('#weibo-blur-background');
           if (bg) {
             bg.remove();
           }
@@ -206,10 +203,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 if (!window.diagnoseBackgroundStatus) {
   window.diagnoseBackgroundStatus = function() {
     console.log('[微博增强] 临时诊断函数启动');
-    console.log('1. backgroundStore状态:', typeof backgroundStore !== 'undefined' ? backgroundStore : '未定义');
-    console.log('2. DOM状态:', {
+    console.log('1. backgroundStore状态:', typeof backgroundStore !== 'undefined' ? backgroundStore : '未定义');    console.log('2. DOM状态:', {
       readyState: document.readyState,
-      backgroundElement: !!document.querySelector('.weibo-up-background'),
+      backgroundElement: !!document.querySelector('#weibo-blur-background'),
       transparencyStyle: !!document.getElementById('weibo-background-transparency-style')
     });
     console.log('3. 扩展脚本加载状态:', {
