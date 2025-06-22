@@ -2,6 +2,13 @@
 // backgroundStore, saveBackgroundConfig, chromeStorage 从chrome-storage.js全局获取
 // simpleNotify 从notification.js全局获取
 
+// 添加全局状态跟踪，防止重复加载
+let backgroundImageLoadState = {
+    isLoading: false,
+    loadedUrl: null,
+    loadSuccess: false
+};
+
 // 必应图片缓存键和过期时间（6小时）
 const BING_CACHE_KEY = 'weibo_bing_background';
 const CACHE_EXPIRATION = 6 * 60 * 60 * 1000; // 6小时
@@ -108,10 +115,34 @@ async function applyBackground() {
             transparencyStyle.remove();
         }
         return;
-    }
+    }    try {
+        console.log('[微博背景] 开始应用背景...');
+        
+        // 获取背景图片URL - 用于状态检查
+        const backgroundUrlCheck = backgroundStore.url;
+        
+        // **关键修复**: 检查图片是否已经成功加载过相同URL
+        if (backgroundImageLoadState.loadSuccess && backgroundImageLoadState.loadedUrl === backgroundUrlCheck && backgroundUrlCheck) {
+            console.log('[微博背景] 图片已成功加载过，检查背景元素状态:', backgroundUrlCheck.substring(0, 50) + '...');
+            const backgroundElement = document.getElementById('weibo-blur-background');
+            if (backgroundElement && backgroundElement.style.backgroundImage.includes(backgroundUrlCheck)) {
+                console.log('[微博背景] 背景图片已正确应用，跳过重复加载');
+                // 确保样式正确
+                backgroundElement.style.setProperty('z-index', '-1', 'important');
+                backgroundElement.style.setProperty('position', 'fixed', 'important');
+                forceApplyContainerStyles();
+                return;
+            } else {
+                console.log('[微博背景] 背景元素丢失或样式错误，重新创建');
+            }
+        }
 
-    try {
-        console.log('[微博背景] 开始应用背景...');        
+        // **关键修复**: 如果正在加载相同URL，避免重复加载
+        if (backgroundImageLoadState.isLoading && backgroundImageLoadState.loadedUrl === backgroundUrlCheck && backgroundUrlCheck) {
+            console.log('[微博背景] 图片正在加载中，跳过重复请求:', backgroundUrlCheck.substring(0, 50) + '...');
+            return;
+        }
+        
         // 移除现有背景元素
         const existingBg = document.querySelector('#weibo-blur-background');
         if (existingBg) {
@@ -156,12 +187,26 @@ async function applyBackground() {
         
         // 添加微博内容半透明样式
         addContentTransparencyStyles();
-        
-        // 获取背景URL
+          // 获取背景URL
         const backgroundUrl = await getBackgroundUrl();
-          // 处理渐变背景的特殊情况
+        
+        // **关键修复**: 设置加载状态，防止重复请求
+        if (backgroundUrl && backgroundStore.type !== 'gradient') {
+            backgroundImageLoadState = {
+                isLoading: true,
+                loadedUrl: backgroundUrl,
+                loadSuccess: false
+            };
+            console.log('[微博背景] 开始加载图片，设置状态标志:', backgroundUrl.substring(0, 50) + '...');
+        }        // 处理渐变背景的特殊情况
         if (backgroundStore.type === 'gradient') {
             console.log('[微博背景] 应用渐变背景');
+            // 重置图片加载状态
+            backgroundImageLoadState = {
+                isLoading: false,
+                loadedUrl: null,
+                loadSuccess: false
+            };
             // 清除初始背景色，设置渐变背景
             backgroundElement.style.backgroundColor = '';
             backgroundElement.style.background = `linear-gradient(135deg, 
@@ -169,8 +214,7 @@ async function applyBackground() {
                 rgba(80, 200, 120, 0.3) 100%)`;
             console.log('[微博背景] 渐变背景应用完成');
             return;
-        }
-          if (!backgroundUrl) {
+        }        if (!backgroundUrl) {
             console.error('[微博背景] 无法应用背景，URL为空');
             console.error('[微博背景] 详细信息:', {
                 backgroundStore: backgroundStore,
@@ -178,6 +222,13 @@ async function applyBackground() {
                 enabled: backgroundStore?.enabled,
                 url: backgroundStore?.url
             });
+            
+            // **关键修复**: URL为空时重置状态
+            backgroundImageLoadState = {
+                isLoading: false,
+                loadedUrl: null,
+                loadSuccess: false
+            };
             
             simpleNotify('无法加载背景图片，请尝试切换背景类型或刷新页面');
             
@@ -197,15 +248,17 @@ async function applyBackground() {
         
         // 设置标志，以便跟踪图片是否成功加载
         let imageLoadSuccess = false;
-        let imageLoadCompleted = false;
-        
-        // 设置跨域属性，避免CORS问题
-        preloadImg.crossOrigin = 'anonymous';
-          // 设置超时机制，如果5秒内图片没有加载成功，就使用后备方案
-        const loadTimeout = setTimeout(() => {
+        let imageLoadCompleted = false;        // 设置超时机制，如果10秒内图片没有加载成功，就使用后备方案
+        const imageTimeout = setTimeout(() => {
             if (!imageLoadCompleted) {
                 console.warn('[微博背景] 图片加载超时，使用渐变背景作为后备');
                 imageLoadCompleted = true;
+                // **关键修复**: 更新全局状态 - 加载失败
+                backgroundImageLoadState = {
+                    isLoading: false,
+                    loadedUrl: backgroundUrl,
+                    loadSuccess: false
+                };
                 // 切换到渐变背景
                 backgroundElement.style.backgroundColor = '';
                 backgroundElement.style.background = `linear-gradient(135deg, 
@@ -213,12 +266,28 @@ async function applyBackground() {
                     rgba(80, 200, 120, 0.3) 100%)`;
                 simpleNotify('背景图片加载超时，已使用渐变背景');
             }
-        }, 5000);        // 图片加载完成后设置背景图 - 参考youhou分支实现，增强稳定性
+        }, 10000); // 延长到10秒，给图片更多加载时间
+
+        // 图片加载完成后设置背景图 - 参考youhou分支实现，增强稳定性
         preloadImg.onload = () => {
             imageLoadSuccess = true;
+            imageLoadCompleted = true;
             clearTimeout(imageTimeout); // 清除超时定时器
             
-            console.log('[微博背景] 背景图片加载成功');
+            // **关键修复**: 更新全局状态 - 加载成功
+            backgroundImageLoadState = {
+                isLoading: false,
+                loadedUrl: backgroundUrl,
+                loadSuccess: true
+            };
+            
+            console.log('[微博背景] 背景图片加载成功，更新状态标志');
+            console.log('[微博背景] 图片信息:', {
+                width: preloadImg.naturalWidth,
+                height: preloadImg.naturalHeight,
+                complete: preloadImg.complete,
+                url: backgroundUrl.substring(0, 50) + '...'
+            });
             
             // 设置背景图片，保留淡蓝色作为混合
             backgroundElement.style.backgroundImage = `url("${backgroundUrl}")`;
@@ -243,11 +312,25 @@ async function applyBackground() {
                     simpleNotify('背景图片应用成功');
                 }
             }, 300);
-        };
-        
-        preloadImg.onerror = () => {
+        };        preloadImg.onerror = (event) => {
             imageLoadSuccess = false;
-            console.error('[微博背景] 背景图片加载失败:', backgroundUrl);
+            imageLoadCompleted = true;
+            clearTimeout(imageTimeout); // 清除超时定时器
+            
+            // **关键修复**: 更新全局状态 - 加载失败
+            backgroundImageLoadState = {
+                isLoading: false,
+                loadedUrl: backgroundUrl,
+                loadSuccess: false
+            };
+            
+            console.error('[微博背景] 背景图片加载失败，更新状态标志:', backgroundUrl);
+            console.error('[微博背景] 加载失败详情:', {
+                event: event,
+                naturalWidth: preloadImg.naturalWidth,
+                naturalHeight: preloadImg.naturalHeight,
+                complete: preloadImg.complete
+            });
             
             // 显示错误通知并保持淡蓝色调试背景
             simpleNotify('背景图片加载失败，使用纯色背景');
@@ -255,19 +338,26 @@ async function applyBackground() {
             // 确保背景色可见
             backgroundElement.style.backgroundImage = 'none';
             backgroundElement.style.backgroundColor = 'rgba(173, 216, 230, 0.3)';
-            
-            // 记录加载失败
+              // 记录加载失败
             console.log('[微博背景] 使用淡蓝色背景作为回退');
-        };
-        
-        // 添加额外的超时检查，确保在一定时间后如果图片未加载则报错
-        const imageTimeout = setTimeout(() => {
-            if (!imageLoadSuccess) {
-                console.error('[微博背景] 背景图片加载超时:', backgroundUrl);
-                preloadImg.onerror(); // 触发错误处理
-            }
-        }, 8000); // 8秒超时// 开始预加载图片
+        };        // 开始预加载图片
         console.log('[微博背景] 开始预加载图片:', backgroundUrl);
+        
+        // 验证 URL 格式
+        try {
+            new URL(backgroundUrl);
+            console.log('[微博背景] URL 格式验证通过');
+        } catch (e) {
+            console.error('[微博背景] URL 格式无效:', backgroundUrl, e);
+            // 如果 URL 无效，直接使用渐变背景
+            backgroundElement.style.backgroundColor = '';
+            backgroundElement.style.background = `linear-gradient(135deg, 
+                rgba(74, 144, 226, 0.3) 0%, 
+                rgba(80, 200, 120, 0.3) 100%)`;
+            simpleNotify('背景图片URL无效，已使用渐变背景');
+            return;
+        }
+        
         preloadImg.src = backgroundUrl;
           // 设置背景持久化监听
         setupBackgroundPersistence();
@@ -284,9 +374,14 @@ async function applyBackground() {
         window.__weiboBackgroundReinforceInterval = setInterval(() => {
             reinforceBackgroundDisplay();
         }, 3000); // 每3秒强化一次
-        
-    } catch (error) {
+          } catch (error) {
         console.error('[微博背景] 应用背景时出错:', error);
+        // **关键修复**: 出错时重置状态
+        backgroundImageLoadState = {
+            isLoading: false,
+            loadedUrl: null,
+            loadSuccess: false
+        };
         simpleNotify('应用背景图片时出错，请检查设置');
     }
 }
@@ -674,8 +769,13 @@ function diagnoseBackgroundStatus() {
     console.log('1. 存储状态检查:');
     console.log('   backgroundStore:', backgroundStore);
     console.log('   存储是否已初始化:', backgroundStore && backgroundStore.enabled !== undefined);
-      // 2. 检查DOM状态
-    console.log('2. DOM状态检查:');
+    
+    // **新增**: 检查图片加载状态
+    console.log('2. 图片加载状态检查:');
+    console.log('   backgroundImageLoadState:', backgroundImageLoadState);
+    
+    // 3. 检查DOM状态
+    console.log('3. DOM状态检查:');
     const backgroundElement = document.querySelector('#weibo-blur-background');
     const transparencyStyle = document.getElementById('weibo-background-transparency-style');
     
