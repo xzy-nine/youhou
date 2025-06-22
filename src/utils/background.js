@@ -113,8 +113,7 @@ async function applyBackground() {
         
         // 创建背景元素
         const backgroundElement = document.createElement('div');
-        backgroundElement.className = 'weibo-up-background';
-          // 基本样式
+        backgroundElement.className = 'weibo-up-background';        // 基本样式
         backgroundElement.style.cssText = `
             position: fixed !important;
             top: 0 !important;
@@ -131,17 +130,14 @@ async function applyBackground() {
           // 设置不透明度
         const opacity = backgroundStore.opacity !== undefined ? backgroundStore.opacity : 0.2;
         backgroundElement.style.opacity = opacity.toString();
-        
-        // 立即添加到页面，确保在最底层
-        document.body.insertBefore(backgroundElement, document.body.firstChild);
-        
-        // 强制设置body的定位和背景
+          // 强制设置body的定位和背景
         document.body.style.position = 'relative';
         document.body.style.zIndex = '1';
         
         // 添加微博内容半透明样式
         addContentTransparencyStyles();
-          // 获取背景URL
+        
+        // 获取背景URL
         const backgroundUrl = await getBackgroundUrl();
         
         // 处理渐变背景的特殊情况
@@ -150,11 +146,13 @@ async function applyBackground() {
             backgroundElement.style.background = `linear-gradient(135deg, 
                 rgba(74, 144, 226, 0.3) 0%, 
                 rgba(80, 200, 120, 0.3) 100%)`;
-            document.body.appendChild(backgroundElement);
+            // 立即添加到页面，确保在最底层
+            document.body.insertBefore(backgroundElement, document.body.firstChild);
             console.log('[微博背景] 渐变背景应用完成');
             return;
         }
-          if (!backgroundUrl) {
+        
+        if (!backgroundUrl) {
             console.error('[微博背景] 无法应用背景，URL为空');
             console.error('[微博背景] 详细信息:', {
                 backgroundStore: backgroundStore,
@@ -169,7 +167,8 @@ async function applyBackground() {
             backgroundElement.style.background = `linear-gradient(135deg, 
                 rgba(74, 144, 226, 0.1) 0%, 
                 rgba(80, 200, 120, 0.1) 100%)`;
-            document.body.appendChild(backgroundElement);
+            // 立即添加到页面，确保在最底层
+            document.body.insertBefore(backgroundElement, document.body.firstChild);
             
             // 暴露诊断函数到控制台
             console.log('[微博背景] 可以在控制台运行 diagnoseBackgroundStatus() 进行诊断');
@@ -185,13 +184,13 @@ async function applyBackground() {
         
         // 设置跨域属性，避免CORS问题
         preloadImg.crossOrigin = 'anonymous';
-        
-        // 图片加载完成后设置背景图
+          // 图片加载完成后设置背景图
         preloadImg.onload = () => {
             imageLoadSuccess = true;
             console.log('[微博背景] 图片预加载成功，设置背景');
             backgroundElement.style.backgroundImage = `url("${backgroundUrl}")`;
-            document.body.appendChild(backgroundElement);
+            // 立即添加到页面，确保在最底层
+            document.body.insertBefore(backgroundElement, document.body.firstChild);
             console.log('[微博背景] 背景已成功应用');
         };
         
@@ -203,7 +202,8 @@ async function applyBackground() {
             // 即使预加载失败，也尝试直接设置背景图
             // 因为浏览器缓存可能已经有这张图片
             backgroundElement.style.backgroundImage = `url("${backgroundUrl}")`;
-            document.body.appendChild(backgroundElement);
+            // 立即添加到页面，确保在最底层
+            document.body.insertBefore(backgroundElement, document.body.firstChild);
             
             // 等待一段时间后检查背景是否真的加载失败
             setTimeout(() => {
@@ -218,15 +218,68 @@ async function applyBackground() {
                     console.log('[微博背景] 背景图片实际加载成功（可能由于浏览器缓存）');
                 }
             }, 1000);
-        };
-          // 开始预加载图片
+        };        // 开始预加载图片
         console.log('[微博背景] 开始预加载图片:', backgroundUrl);
         preloadImg.src = backgroundUrl;
+        
+        // 设置背景持久化监听
+        setupBackgroundPersistence();
         
     } catch (error) {
         console.error('[微博背景] 应用背景时出错:', error);
         simpleNotify('应用背景图片时出错，请检查设置');
     }
+}
+
+/**
+ * 设置背景持久化监听，防止被页面路由变化清除
+ */
+function setupBackgroundPersistence() {
+    // 防止重复设置
+    if (window.__weiboBackgroundObserver) {
+        window.__weiboBackgroundObserver.disconnect();
+    }
+    
+    // 创建观察器监听DOM变化
+    const observer = new MutationObserver((mutations) => {
+        // 防抖处理
+        if (window.__weiboBackgroundDebounce) {
+            clearTimeout(window.__weiboBackgroundDebounce);
+        }
+        
+        window.__weiboBackgroundDebounce = setTimeout(() => {
+            // 检查背景元素是否还存在
+            const backgroundElement = document.querySelector('.weibo-up-background');
+            if (!backgroundElement && backgroundStore.enabled) {
+                console.log('[微博背景] 检测到背景元素丢失，重新应用背景');
+                applyBackground();
+            }
+        }, 500);
+    });
+    
+    // 开始观察
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+    
+    // 保存观察器引用
+    window.__weiboBackgroundObserver = observer;
+    
+    // 定期检查背景状态
+    if (window.__weiboBackgroundInterval) {
+        clearInterval(window.__weiboBackgroundInterval);
+    }
+    
+    window.__weiboBackgroundInterval = setInterval(() => {
+        if (backgroundStore.enabled) {
+            const backgroundElement = document.querySelector('.weibo-up-background');
+            if (!backgroundElement) {
+                console.log('[微博背景] 定期检查发现背景丢失，重新应用');
+                applyBackground();
+            }
+        }
+    }, 10000); // 每10秒检查一次
 }
 
 /**
@@ -255,21 +308,32 @@ function addContentTransparencyStyles() {
     const isDarkMode = document.documentElement && document.documentElement.classList.contains('woo-theme-dark');
     const bgColor = isDarkMode ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`;    // 为微博内容添加半透明背景的CSS
     existingStyle.textContent = `
-        /* 主要内容容器 - 仅针对微博文章 */
+        /* 主要内容容器 - 优先针对微博文章 */
         article,
-        #scroller > div.vue-recycle-scroller__item-wrapper > div > div > article {
+        #scroller > div.vue-recycle-scroller__item-wrapper > div > div > article,
+        #scroller > div.vue-recycle-scroller__item-wrapper > div:nth-child(n) > div > article {
             background-color: ${bgColor} !important;
             backdrop-filter: blur(${blurPixels}px) !important;
             border-radius: 8px !important;
-            margin: 5px !important;
+            margin: 5px 0 !important;
             padding: 10px !important;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
             transition: backdrop-filter 0.3s ease, background-color 0.3s ease !important;
         }
         
+        /* 确保内部内容透明 */
+        article .wbpro-feed-content,
+        article div[class*="feed-content"],
+        article div[class*="Feed_body"] > div {
+            background-color: transparent !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+        }
+        
         /* 确保页面主容器有正确的z-index */
         #app,
-        #app > div {
+        #app > div,
+        body {
             position: relative !important;
             z-index: 1 !important;
         }
@@ -595,6 +659,9 @@ async function forceApplyBackground() {
             }
         }
         
+        // 设置持久化
+        setupBackgroundPersistence();
+        
     } catch (error) {
         console.error('[微博背景] 强制应用背景失败:', error);
     }
@@ -690,3 +757,50 @@ if (document.readyState === 'loading') {
     // DOM已经加载完成，立即执行
     setTimeout(exposeFunctionsToGlobal, 100);
 }
+
+// 页面加载完成后自动初始化背景功能
+function initializeBackground() {
+    // 等待存储初始化完成
+    const checkAndApply = () => {
+        if (typeof backgroundStore !== 'undefined' && backgroundStore !== null) {
+            console.log('[微博背景] 存储已初始化，开始应用背景');
+            if (backgroundStore.enabled) {
+                setTimeout(() => {
+                    applyBackground();
+                }, 500);
+            }
+        } else {
+            console.log('[微博背景] 等待存储初始化...');
+            setTimeout(checkAndApply, 1000);
+        }
+    };
+    
+    checkAndApply();
+}
+
+// 页面加载时初始化
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeBackground);
+} else {
+    initializeBackground();
+}
+
+// 监听页面路由变化
+let lastUrl = location.href;
+new MutationObserver(() => {
+    const url = location.href;
+    if (url !== lastUrl) {
+        lastUrl = url;
+        console.log('[微博背景] 检测到页面路由变化:', url);
+        // 延迟重新应用背景，确保新页面内容加载完成
+        setTimeout(() => {
+            if (backgroundStore && backgroundStore.enabled) {
+                const bgElement = document.querySelector('.weibo-up-background');
+                if (!bgElement) {
+                    console.log('[微博背景] 路由变化后重新应用背景');
+                    applyBackground();
+                }
+            }
+        }, 1000);
+    }
+}).observe(document, { subtree: true, childList: true });
