@@ -8,7 +8,6 @@ let userSettings = {
   // 宽屏设置
   widescreen_enabled: true,
   widescreen_loose: false,
-  widescreen_ui_visible: false, // 默认不显示控制面板
   widescreen_notify_enabled: false,
   // 背景设置
   background_enabled: false,
@@ -231,8 +230,7 @@ function setupEventListeners() {
     chrome.storage.local.set({ background_content_opacity: value });
     sendMessageToContentScript({ action: 'updateBackground' });
   });
-  
-  // 通知设置
+    // 通知设置
   document.getElementById('notification-toggle').addEventListener('change', (e) => {
     userSettings.widescreen_notify_enabled = e.target.checked;
     userSettings.background_notify_enabled = e.target.checked;
@@ -240,6 +238,50 @@ function setupEventListeners() {
       widescreen_notify_enabled: e.target.checked,
       background_notify_enabled: e.target.checked
     });
+  });
+  
+  // 清理缓存按钮
+  document.getElementById('clear-cache-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('clear-cache-btn');
+    const originalText = btn.innerHTML;
+    
+    try {
+      // 更新按钮状态
+      btn.innerHTML = '🔄 清理中...';
+      btn.disabled = true;
+      
+      // 调用background脚本的清理缓存功能
+      await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({ action: 'clearCache' }, (response) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve(response);
+          }
+        });
+      });
+      
+      // 清理成功
+      btn.innerHTML = '✅ 清理完成';
+      setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }, 2000);
+      
+      // 重新加载设置
+      chrome.storage.local.get(null, (settings) => {
+        userSettings = { ...userSettings, ...settings };
+        updateUI();
+      });
+      
+    } catch (error) {
+      console.error('清理缓存失败:', error);
+      btn.innerHTML = '❌ 清理失败';
+      setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }, 2000);
+    }
   });
 }
 

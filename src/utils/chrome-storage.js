@@ -17,6 +17,54 @@ const chromeStorage = {
   // 删除数据
   deleteValue(key) {
     return chrome.storage.local.remove(key);
+  },
+  
+  // 清理缓存数据，保留配置
+  async clearCacheKeepConfig() {
+    const configKeys = [
+      'widescreen_enabled',
+      'widescreen_loose', 
+      'widescreen_notify_enabled',
+      'background_enabled',
+      'background_type',
+      'background_url',
+      'background_opacity',
+      'background_content_transparency',
+      'background_content_opacity',
+      'background_content_blur',
+      'background_notify_enabled',
+      'userOverride',
+      'userThemeMode'
+    ];
+    
+    try {
+      // 获取所有数据
+      const allData = await new Promise(resolve => {
+        chrome.storage.local.get(null, resolve);
+      });
+      
+      // 保存配置数据
+      const configData = {};
+      configKeys.forEach(key => {
+        if (key in allData) {
+          configData[key] = allData[key];
+        }
+      });
+      
+      // 清空所有数据
+      await chrome.storage.local.clear();
+      
+      // 恢复配置数据
+      if (Object.keys(configData).length > 0) {
+        await chrome.storage.local.set(configData);
+        console.log('[微博增强] 缓存已手动清理，配置已保留:', configData);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('[微博增强] 手动清理缓存失败:', error);
+      return false;
+    }
   }
 };
 
@@ -24,10 +72,7 @@ const chromeStorage = {
 const widescreenStore = {
   enabled: true,
   loose: false,
-  notify_enabled: false,
-  ui_visible: true,
-  panel_expanded: true,
-  panel_position: null
+  notify_enabled: false
 };
 
 // 背景设置存储
@@ -55,16 +100,11 @@ async function initStorage() {
         resolve(result || {});
       });
     });
-    
-    // 宽屏设置
+      // 宽屏设置
     widescreenStore.enabled = allSettings.widescreen_enabled !== undefined ? allSettings.widescreen_enabled : true;
     widescreenStore.loose = allSettings.widescreen_loose || false;
     widescreenStore.notify_enabled = allSettings.widescreen_notify_enabled || false;
-    widescreenStore.ui_visible = allSettings.widescreen_ui_visible !== undefined ? allSettings.widescreen_ui_visible : true;
-    widescreenStore.panel_expanded = allSettings.widescreen_panel_expanded !== undefined ? allSettings.widescreen_panel_expanded : true;
-    widescreenStore.panel_position = allSettings.widescreen_panel_position || null;
-    
-    // 背景设置
+      // 背景设置
     backgroundStore.enabled = allSettings.background_enabled || false;
     backgroundStore.type = allSettings.background_type || 'bing';
     backgroundStore.url = allSettings.background_url || '';
@@ -77,6 +117,8 @@ async function initStorage() {
                               allSettings.background_content_blur : 5;
     backgroundStore.notify_enabled = allSettings.background_notify_enabled !== undefined ? 
                                 allSettings.background_notify_enabled : true;
+    
+    console.log('[微博增强] 背景设置加载完成:', backgroundStore);
     
     // 主题设置
     userOverride = allSettings.userOverride || false;
@@ -95,9 +137,6 @@ function saveWidescreenConfig() {
   chromeStorage.setValue('widescreen_enabled', widescreenStore.enabled);
   chromeStorage.setValue('widescreen_loose', widescreenStore.loose);
   chromeStorage.setValue('widescreen_notify_enabled', widescreenStore.notify_enabled);
-  chromeStorage.setValue('widescreen_ui_visible', widescreenStore.ui_visible);
-  chromeStorage.setValue('widescreen_panel_expanded', widescreenStore.panel_expanded);
-  chromeStorage.setValue('widescreen_panel_position', widescreenStore.panel_position);
 }
 
 // 保存背景配置
