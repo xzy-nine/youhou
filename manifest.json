@@ -21,12 +21,13 @@
     "tabs",
     "notifications",
     "management"
-  ],
-  "host_permissions": [
+  ],  "host_permissions": [
     "https://bing.com/*",
     "https://*.bing.com/*",
+    "https://www.bing.com/*",
+    "https://cn.bing.com/*",
     "https://api.kdcc.cn/*"
-  ],  "content_scripts": [
+  ],"content_scripts": [
     {
       "matches": ["https://*.weibo.com/*"],
       "js": [

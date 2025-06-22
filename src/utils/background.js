@@ -11,66 +11,26 @@ const CACHE_EXPIRATION = 6 * 60 * 60 * 1000; // 6小时
  * @returns {Promise<string|null>} 图片URL，失败返回null
  */
 async function fetchBingImage() {
-    const now = Date.now();
-    const BING_CACHE_KEY = 'weiboUpBingCache';
-    
     try {
-        // 检查缓存是否有效 (6小时)
-        const cached = await chromeStorage.getValue(BING_CACHE_KEY);
-        if (cached && (now - cached.timestamp) < 21600000) {
-            console.log('[微博背景] 使用缓存的必应图片:', cached.url.substring(0, 100) + '...');
-            return cached.url;
-        }        let imageUrl = '';
-        try {
-            // 调用必应官方API获取每日图片
-            const apiUrl = 'https://cn.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1';
-            console.log('[微博背景] 正在获取必应每日图片API数据...');
-            
-            const response = await fetch(apiUrl);
-            if (!response.ok) {
-                throw new Error(`API请求失败: ${response.status} ${response.statusText}`);
-            }
-            
-            const data = await response.json();
-            console.log('[微博背景] 必应API返回数据:', data);
-            
-            // 检查返回数据的格式
-            if (!data || !data.images || !Array.isArray(data.images) || data.images.length === 0) {
-                throw new Error('API返回数据格式不正确');
-            }
-            
-            // 获取第一张图片的URL
-            const imageInfo = data.images[0];
-            if (!imageInfo.url) {
-                throw new Error('图片URL不存在');
-            }
-            
-            // 拼接完整的图片URL
-            imageUrl = 'https://cn.bing.com' + imageInfo.url;
-            
-            console.log('[微博背景] 获取到必应今日图片:', {
-                title: imageInfo.title || '未知标题',
-                copyright: imageInfo.copyright || '未知版权',
-                url: imageUrl
+        console.log('[微博背景] 向后台脚本请求必应图片...');
+        
+        // 向后台脚本发送消息请求必应图片
+        const result = await new Promise((resolve, reject) => {
+            chrome.runtime.sendMessage({ action: 'fetchBingImage' }, (response) => {
+                if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                } else {
+                    resolve(response);
+                }
             });
-            
-        } catch (error) {
-            console.error('[微博背景] 调用必应API失败:', error);
-            throw new Error('获取必应图片失败: ' + error.message);
-        }
-        
-        // 添加随机参数，避免缓存问题
-        const finalUrl = imageUrl + (imageUrl.includes('?') ? '&' : '?') + '_t=' + now;
-        
-        // 更新缓存
-        await chromeStorage.setValue(BING_CACHE_KEY, {
-            url: finalUrl,
-            timestamp: now,
-            originalUrl: imageUrl
         });
         
-        console.log('[微博背景] 成功获取必应图片：', finalUrl);
-        return finalUrl;
+        if (result.success) {
+            console.log('[微博背景] 成功从后台脚本获取必应图片:', result.url);
+            return result.url;
+        } else {
+            throw new Error(result.error || '未知错误');
+        }
         
     } catch (error) {
         console.error('[微博背景] 获取必应图片出错:', error);
