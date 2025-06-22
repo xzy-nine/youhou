@@ -66,17 +66,16 @@ function checkAndReapplyStyles() {
     applyBaseWidescreenStyles(true);
     return;
   }
-  
-  // 检查CSS类是否正确应用
-  const hasLooseClass = document.documentElement.classList.contains('inject-widescreen-loose-js');
+    // 检查CSS类是否正确应用
+  const hasLooseClass = document.documentElement && document.documentElement.classList.contains('inject-widescreen-loose-js');
   if (widescreenStore.loose && !hasLooseClass) {
     console.log('[微博宽屏] 检测到宽松模式类缺失，重新应用样式');
-    document.documentElement.classList.add('inject-widescreen-loose-js');
-    document.body.classList.add('inject-widescreen-loose-js');
+    if (document.documentElement) document.documentElement.classList.add('inject-widescreen-loose-js');
+    if (document.body) document.body.classList.add('inject-widescreen-loose-js');
   } else if (!widescreenStore.loose && hasLooseClass) {
     console.log('[微博宽屏] 检测到不需要宽松模式类，移除');
-    document.documentElement.classList.remove('inject-widescreen-loose-js');
-    document.body.classList.remove('inject-widescreen-loose-js');
+    if (document.documentElement) document.documentElement.classList.remove('inject-widescreen-loose-js');
+    if (document.body) document.body.classList.remove('inject-widescreen-loose-js');
   }
 }
 
@@ -99,12 +98,11 @@ function applyBaseWidescreenStyles(isUpdate = false) {
   
   // 更新样式内容
   styleElement.textContent = weiboWidescreenCSS;
-  
-  // 处理宽松模式(更宽模式)
+    // 处理宽松模式(更宽模式)
   if (widescreenStore.loose) {
     // 添加CSS类 (对文档和body都添加)
-    document.documentElement.classList.add('inject-widescreen-loose-js');
-    document.body.classList.add('inject-widescreen-loose-js');
+    if (document.documentElement) document.documentElement.classList.add('inject-widescreen-loose-js');
+    if (document.body) document.body.classList.add('inject-widescreen-loose-js');
     
     // 单独应用宽松模式CSS
     const looseStyleId = 'weibo-widescreen-loose-style';
@@ -116,11 +114,10 @@ function applyBaseWidescreenStyles(isUpdate = false) {
       document.head.appendChild(looseStyleElement);
     }
     
-    looseStyleElement.textContent = weiboWidescreenLooseCSS;
-  } else {
+    looseStyleElement.textContent = weiboWidescreenLooseCSS;  } else {
     // 移除更宽模式
-    document.documentElement.classList.remove('inject-widescreen-loose-js');
-    document.body.classList.remove('inject-widescreen-loose-js');
+    if (document.documentElement) document.documentElement.classList.remove('inject-widescreen-loose-js');
+    if (document.body) document.body.classList.remove('inject-widescreen-loose-js');
     
     const looseStyleElement = document.getElementById('weibo-widescreen-loose-style');
     if (looseStyleElement) {
@@ -147,11 +144,10 @@ function applyBaseWidescreenStyles(isUpdate = false) {
     // 否则应用旧版样式
     setupLegacyWeiboStyles();
   }
-
   // 再次确保宽屏类被应用（防止其他脚本移除）
   if (widescreenStore.loose) {
-    document.documentElement.classList.add('inject-widescreen-loose-js');
-    document.body.classList.add('inject-widescreen-loose-js');
+    if (document.documentElement) document.documentElement.classList.add('inject-widescreen-loose-js');
+    if (document.body) document.body.classList.add('inject-widescreen-loose-js');
   }
 
   // 向iframe注入宽屏样式

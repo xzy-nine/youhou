@@ -1,163 +1,241 @@
 // 弹出界面的JavaScript
 
+// 设置对象
+let userSettings = {
+  // 主题设置
+  userOverride: false,
+  userThemeMode: false,
+  // 宽屏设置
+  widescreen_enabled: true,
+  widescreen_loose: false,
+  widescreen_ui_visible: false, // 默认不显示控制面板
+  widescreen_notify_enabled: false,
+  // 背景设置
+  background_enabled: false,
+  background_type: 'bing',
+  background_url: '',
+  background_opacity: 0.2,
+  background_content_transparency: true,
+  background_content_opacity: 0.7,
+  background_content_blur: 5,
+  background_notify_enabled: false
+};
+
+// 设置主题模式
+function setThemeMode(isDark) {
+  if (isDark) {
+    document.documentElement.classList.add('dark');
+    document.documentElement.classList.remove('light');
+  } else {
+    document.documentElement.classList.add('light');
+    document.documentElement.classList.remove('dark');
+  }
+}
+
 // 页面加载时初始化设置
 document.addEventListener('DOMContentLoaded', async () => {
+  // 应用默认主题
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  setThemeMode(prefersDark);
+  
   // 从存储中加载设置
   chrome.storage.local.get(null, (settings) => {
-    // 主题设置
-    const themeOverride = document.getElementById('theme-override');
-    const themeDarkMode = document.getElementById('theme-dark-mode');
+    // 更新设置对象
+    userSettings = { ...userSettings, ...settings };
     
-    themeOverride.checked = settings.userOverride || false;
-    // 显示或隐藏深色模式选项
-    document.getElementById('theme-mode-option').style.display = settings.userOverride ? 'flex' : 'none';
-    // 设置主题模式
-    themeDarkMode.checked = settings.userThemeMode !== undefined ? settings.userThemeMode : 
-                            window.matchMedia('(prefers-color-scheme: dark)').matches;
+    // 更新UI状态
+    updateUI();
     
-    // 宽屏设置
-    document.getElementById('widescreen-enabled').checked = settings.widescreen_enabled !== undefined ? 
-                                                          settings.widescreen_enabled : true;
-    document.getElementById('widescreen-loose').checked = settings.widescreen_loose || false;
-    document.getElementById('widescreen-ui-visible').checked = settings.widescreen_ui_visible !== undefined ? 
-                                                             settings.widescreen_ui_visible : true;
-    
-    // 背景设置
-    const backgroundEnabled = document.getElementById('background-enabled');
-    const backgroundType = document.getElementById('background-type');
-    const backgroundUrl = document.getElementById('background-url');
-    const backgroundOpacity = document.getElementById('background-opacity');
-    const contentTransparency = document.getElementById('content-transparency');
-    const contentOpacity = document.getElementById('content-opacity');
-    const contentBlur = document.getElementById('content-blur');
-    
-    backgroundEnabled.checked = settings.background_enabled || false;
-    backgroundType.value = settings.background_type || 'bing';
-    backgroundUrl.value = settings.background_url || '';
-    document.getElementById('custom-url-container').style.display = 
-      settings.background_type === 'custom' ? 'block' : 'none';
-    
-    // 设置范围值和显示
-    backgroundOpacity.value = settings.background_opacity !== undefined ? settings.background_opacity : 0.2;
-    document.getElementById('background-opacity-value').textContent = `${Math.round(backgroundOpacity.value * 100)}%`;
-    
-    contentTransparency.checked = settings.background_content_transparency !== undefined ? 
-                                settings.background_content_transparency : true;
-    
-    contentOpacity.value = settings.background_content_opacity !== undefined ? settings.background_content_opacity : 0.7;
-    document.getElementById('content-opacity-value').textContent = `${Math.round(contentOpacity.value * 100)}%`;
-    
-    contentBlur.value = settings.background_content_blur !== undefined ? settings.background_content_blur : 5;
-    document.getElementById('content-blur-value').textContent = `${contentBlur.value}px`;
-    
-    // 内容透明度选项的显示/隐藏
-    document.getElementById('content-transparency-options').style.display = 
-      contentTransparency.checked ? 'block' : 'none';
-    
-    // 通知设置
-    document.getElementById('notify-enabled').checked = settings.widescreen_notify_enabled || false;
+    // 根据用户设置更新主题
+    if (userSettings.userOverride) {
+      setThemeMode(userSettings.userThemeMode);
+    }
   });
   
   // 设置事件监听器
   setupEventListeners();
 });
 
+function updateUI() {
+  // 更新宽屏功能状态
+  const widescreenToggle = document.getElementById('widescreen-toggle');
+  const widescreenStatus = document.getElementById('widescreen-status');
+  const widescreenIndicator = widescreenToggle.querySelector('.status-indicator');
+  
+  widescreenToggle.className = userSettings.widescreen_enabled ? 'active' : '';
+  widescreenStatus.textContent = userSettings.widescreen_enabled ? '已开启' : '已关闭';
+  widescreenIndicator.className = `status-indicator ${userSettings.widescreen_enabled ? 'on' : 'off'}`;
+  document.getElementById('widescreen-loose').checked = userSettings.widescreen_loose;
+  
+  // 更新主题按钮状态
+  const themeToggle = document.getElementById('theme-toggle');
+  const themeIndicator = themeToggle.querySelector('.status-indicator');
+  
+  if (userSettings.userOverride) {
+    themeIndicator.className = `status-indicator ${userSettings.userThemeMode ? 'on' : 'off'}`;
+    document.getElementById('theme-status').textContent = userSettings.userThemeMode ? '深色模式' : '浅色模式';
+  } else {
+    themeIndicator.className = 'status-indicator off';
+    document.getElementById('theme-status').textContent = '跟随系统';
+  }
+  
+  // 更新背景设置
+  const backgroundToggle = document.getElementById('background-toggle');
+  const backgroundStatus = document.getElementById('background-status');
+  const backgroundIndicator = backgroundToggle.querySelector('.status-indicator');
+  
+  backgroundToggle.className = userSettings.background_enabled ? 'active' : '';
+  backgroundStatus.textContent = userSettings.background_enabled ? '已开启' : '已关闭';
+  backgroundIndicator.className = `status-indicator ${userSettings.background_enabled ? 'on' : 'off'}`;
+  
+  // 背景选项显示状态
+  document.getElementById('background-options').style.display = userSettings.background_enabled ? 'block' : 'none';
+  
+  // 背景来源
+  if (userSettings.background_type === 'bing') {
+    document.getElementById('bing-background').checked = true;
+  } else {
+    document.getElementById('custom-background').checked = true;
+  }
+  
+  document.getElementById('custom-url-container').style.display = 
+    userSettings.background_type === 'custom' ? 'block' : 'none';
+  document.getElementById('background-url').value = userSettings.background_url || '';
+  
+  // 不透明度设置
+  const bgOpacityValue = Math.round(userSettings.background_opacity * 100);
+  document.getElementById('background-opacity').value = bgOpacityValue;
+  document.getElementById('background-opacity-value').textContent = `${bgOpacityValue}%`;
+  
+  // 内容半透明设置
+  document.getElementById('content-transparency-toggle').checked = userSettings.background_content_transparency;
+  document.getElementById('content-opacity-container').style.display = 
+    userSettings.background_content_transparency ? 'block' : 'none';
+  
+  const contentOpacityValue = Math.round(userSettings.background_content_opacity * 100);
+  document.getElementById('content-opacity').value = contentOpacityValue;
+  document.getElementById('content-opacity-value').textContent = `${contentOpacityValue}%`;
+  
+  // 通知设置
+  document.getElementById('notification-toggle').checked = userSettings.widescreen_notify_enabled || false;
+}
+
 function setupEventListeners() {
-  // 主题相关
-  const themeOverride = document.getElementById('theme-override');
-  themeOverride.addEventListener('change', () => {
-    const themeModeOption = document.getElementById('theme-mode-option');
-    themeModeOption.style.display = themeOverride.checked ? 'flex' : 'none';
-    
-    // 保存设置
-    chrome.storage.local.set({ 
-      userOverride: themeOverride.checked 
-    });
-    
-    // 发送消息到内容脚本
-    sendMessageToContentScript({
-      action: 'updateTheme',
-      userOverride: themeOverride.checked,
-      userThemeMode: document.getElementById('theme-dark-mode').checked
-    });
-  });
-  
-  document.getElementById('theme-dark-mode').addEventListener('change', (e) => {
-    chrome.storage.local.set({ userThemeMode: e.target.checked });
-    
-    sendMessageToContentScript({
-      action: 'updateTheme',
-      userOverride: themeOverride.checked,
-      userThemeMode: e.target.checked
-    });
-  });
-  
-  // 宽屏设置
-  document.getElementById('widescreen-enabled').addEventListener('change', (e) => {
-    chrome.storage.local.set({ widescreen_enabled: e.target.checked });
+  // 宽屏切换
+  document.getElementById('widescreen-toggle').addEventListener('click', () => {
+    userSettings.widescreen_enabled = !userSettings.widescreen_enabled;
+    chrome.storage.local.set({ widescreen_enabled: userSettings.widescreen_enabled });
+    updateUI();
     sendMessageToContentScript({ action: 'updateWidescreen' });
   });
   
   document.getElementById('widescreen-loose').addEventListener('change', (e) => {
+    userSettings.widescreen_loose = e.target.checked;
     chrome.storage.local.set({ widescreen_loose: e.target.checked });
     sendMessageToContentScript({ action: 'updateWidescreen' });
   });
   
-  document.getElementById('widescreen-ui-visible').addEventListener('change', (e) => {
-    chrome.storage.local.set({ widescreen_ui_visible: e.target.checked });
-    sendMessageToContentScript({ action: 'updateWidescreen' });
+  // 主题切换
+  document.getElementById('theme-toggle').addEventListener('click', () => {
+    userSettings.userOverride = true;
+    userSettings.userThemeMode = !userSettings.userThemeMode;
+    
+    chrome.storage.local.set({ 
+      userOverride: true, 
+      userThemeMode: userSettings.userThemeMode 
+    });
+    
+    // 更新UI主题
+    setThemeMode(userSettings.userThemeMode);
+    updateUI();
+    
+    // 发送消息到内容脚本
+    sendMessageToContentScript({
+      action: 'updateTheme',
+      userOverride: true,
+      userThemeMode: userSettings.userThemeMode
+    });
+  });
+  
+  // 重置主题跟随系统
+  document.getElementById('theme-reset').addEventListener('click', () => {
+    userSettings.userOverride = false;
+    
+    chrome.storage.local.set({ userOverride: false });
+    
+    // 更新为系统主题
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    setThemeMode(prefersDark);
+    
+    // 更新UI
+    updateUI();
+    
+    // 发送消息到内容脚本
+    sendMessageToContentScript({
+      action: 'updateTheme',
+      userOverride: false
+    });
   });
   
   // 背景设置
-  document.getElementById('background-enabled').addEventListener('change', (e) => {
-    chrome.storage.local.set({ background_enabled: e.target.checked });
+  document.getElementById('background-toggle').addEventListener('click', () => {
+    userSettings.background_enabled = !userSettings.background_enabled;
+    chrome.storage.local.set({ background_enabled: userSettings.background_enabled });
+    updateUI();
     sendMessageToContentScript({ action: 'updateBackground' });
   });
   
-  document.getElementById('background-type').addEventListener('change', (e) => {
-    const isCustom = e.target.value === 'custom';
-    document.getElementById('custom-url-container').style.display = isCustom ? 'block' : 'none';
-    
-    chrome.storage.local.set({ background_type: e.target.value });
-    sendMessageToContentScript({ action: 'updateBackground' });
+  document.getElementById('bing-background').addEventListener('change', () => {
+    if (document.getElementById('bing-background').checked) {
+      userSettings.background_type = 'bing';
+      chrome.storage.local.set({ background_type: 'bing' });
+      document.getElementById('custom-url-container').style.display = 'none';
+      sendMessageToContentScript({ action: 'updateBackground' });
+    }
+  });
+  
+  document.getElementById('custom-background').addEventListener('change', () => {
+    if (document.getElementById('custom-background').checked) {
+      userSettings.background_type = 'custom';
+      chrome.storage.local.set({ background_type: 'custom' });
+      document.getElementById('custom-url-container').style.display = 'block';
+      sendMessageToContentScript({ action: 'updateBackground' });
+    }
   });
   
   document.getElementById('background-url').addEventListener('change', (e) => {
+    userSettings.background_url = e.target.value;
     chrome.storage.local.set({ background_url: e.target.value });
     sendMessageToContentScript({ action: 'updateBackground' });
   });
   
   document.getElementById('background-opacity').addEventListener('input', (e) => {
-    const value = parseFloat(e.target.value);
-    document.getElementById('background-opacity-value').textContent = `${Math.round(value * 100)}%`;
+    const value = parseInt(e.target.value) / 100;
+    userSettings.background_opacity = value;
+    document.getElementById('background-opacity-value').textContent = `${e.target.value}%`;
     chrome.storage.local.set({ background_opacity: value });
     sendMessageToContentScript({ action: 'updateBackground' });
   });
   
-  document.getElementById('content-transparency').addEventListener('change', (e) => {
-    document.getElementById('content-transparency-options').style.display = 
-      e.target.checked ? 'block' : 'none';
-    
+  document.getElementById('content-transparency-toggle').addEventListener('change', (e) => {
+    userSettings.background_content_transparency = e.target.checked;
+    document.getElementById('content-opacity-container').style.display = e.target.checked ? 'block' : 'none';
     chrome.storage.local.set({ background_content_transparency: e.target.checked });
     sendMessageToContentScript({ action: 'updateBackground' });
   });
   
   document.getElementById('content-opacity').addEventListener('input', (e) => {
-    const value = parseFloat(e.target.value);
-    document.getElementById('content-opacity-value').textContent = `${Math.round(value * 100)}%`;
+    const value = parseInt(e.target.value) / 100;
+    userSettings.background_content_opacity = value;
+    document.getElementById('content-opacity-value').textContent = `${e.target.value}%`;
     chrome.storage.local.set({ background_content_opacity: value });
     sendMessageToContentScript({ action: 'updateBackground' });
   });
   
-  document.getElementById('content-blur').addEventListener('input', (e) => {
-    const value = parseInt(e.target.value);
-    document.getElementById('content-blur-value').textContent = `${value}px`;
-    chrome.storage.local.set({ background_content_blur: value });
-    sendMessageToContentScript({ action: 'updateBackground' });
-  });
-  
   // 通知设置
-  document.getElementById('notify-enabled').addEventListener('change', (e) => {
+  document.getElementById('notification-toggle').addEventListener('change', (e) => {
+    userSettings.widescreen_notify_enabled = e.target.checked;
+    userSettings.background_notify_enabled = e.target.checked;
     chrome.storage.local.set({ 
       widescreen_notify_enabled: e.target.checked,
       background_notify_enabled: e.target.checked
@@ -168,8 +246,21 @@ function setupEventListeners() {
 function sendMessageToContentScript(message) {
   // 发送消息到当前活动标签页的内容脚本
   chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-    if (tabs[0] && tabs[0].url.includes('weibo.com')) {
-      chrome.tabs.sendMessage(tabs[0].id, message);
+    if (tabs[0] && tabs[0].url && tabs[0].url.includes('weibo.com')) {
+      try {
+        chrome.tabs.sendMessage(tabs[0].id, message, response => {
+          // 处理可能的响应
+          if (chrome.runtime.lastError) {
+            // 静默处理错误，避免控制台报错
+            console.log('设置已保存，但无法立即应用到页面');
+          }
+        });
+      } catch (e) {
+        // 捕获可能的错误，静默处理
+        console.log('设置已保存，需要刷新页面后生效');
+      }
+    } else {
+      console.log('设置已保存，将在打开微博页面时自动应用');
     }
   });
 }

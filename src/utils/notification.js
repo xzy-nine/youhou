@@ -24,10 +24,9 @@ function simpleNotify(message) {
     opacity: 0;
     transform: translateY(-20px);
   `;
-  
-  // 如果是深色模式，反转颜色
-  const isDarkMode = document.documentElement.classList.contains('woo-theme-dark') || 
-                     document.body.classList.contains('woo-theme-dark');
+    // 如果是深色模式，反转颜色
+  const isDarkMode = (document.documentElement && document.documentElement.classList.contains('woo-theme-dark')) || 
+                     (document.body && document.body.classList.contains('woo-theme-dark'));
   if (isDarkMode) {
     notification.style.backgroundColor = 'rgba(40, 40, 40, 0.95)';
     notification.style.color = '#ddd';

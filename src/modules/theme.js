@@ -45,27 +45,27 @@ function setupThemeSystem() {// 检查系统颜色模式
     
     lastNotifiedOverrideState = userOverride;
   }, 500); // 延迟500毫秒执行，确保页面已加载
-  
-  // 监听系统模式变化
+    // 监听系统模式变化
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
     const newDarkMode = e.matches;
-    const oldSystemMode = GM_getValue('lastSystemMode', prefersDarkMode);
-    // 更新系统模式缓存
-    GM_setValue('lastSystemMode', newDarkMode);
-    
-    console.log(`[微博主题] 系统模式变化: ${newDarkMode ? '深色' : '浅色'}`);
-    
-    // 只有当没有用户手动覆盖时才跟随系统
-    if (!userOverride) {
-      // 传递false表示这不是用户操作
-      setWebsiteMode(newDarkMode, false);
+    chromeStorage.getValue('lastSystemMode', prefersDarkMode).then(oldSystemMode => {
+      // 更新系统模式缓存
+      chromeStorage.setValue('lastSystemMode', newDarkMode);
       
-      // 只有当模式真的改变时才通知
-      if (lastNotifiedMode !== newDarkMode) {
-        simpleNotify(`已切换到${newDarkMode ? '深色' : '浅色'}模式`);
-        lastNotifiedMode = newDarkMode;
+      console.log(`[微博主题] 系统模式变化: ${newDarkMode ? '深色' : '浅色'}`);
+      
+      // 只有当没有用户手动覆盖时才跟随系统
+      if (!userOverride) {
+        // 传递false表示这不是用户操作
+        setWebsiteMode(newDarkMode, false);
+        
+        // 只有当模式真的改变时才通知
+        if (lastNotifiedMode !== newDarkMode) {
+          simpleNotify(`已切换到${newDarkMode ? '深色' : '浅色'}模式`);
+          lastNotifiedMode = newDarkMode;
+        }
       }
-    }
+    });
   });
   
   // 监听localStorage变化以检测用户手动切换模式

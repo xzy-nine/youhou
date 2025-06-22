@@ -90,7 +90,7 @@ function closeCommentModal(overlay) {
 }
 
 // 显示评论悬浮窗
-export function showCommentModal(commentUrl, commentCount) {
+function showCommentModal(commentUrl, commentCount) {
   const modal = createCommentModal();
   
   // 更新标题

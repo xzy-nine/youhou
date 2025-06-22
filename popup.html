@@ -6,245 +6,305 @@
   <title>微博增强设置</title>
   <style>
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       margin: 0;
       padding: 16px;
       width: 300px;
-      color: #333;
+      color: var(--panel-text, #333);
+      background: var(--panel-bg, #ffffff);
     }
     
-    .header {
+    .popup-container {
+      background: var(--panel-bg, #ffffff);
+      padding: 16px;
+      min-width: 240px;
+      border-radius: 12px;
+      opacity: 1;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    
+    .popup-container h3 {
+      margin: 0 0 12px 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--panel-text, #333);
+      text-align: center;
+      border-bottom: 1px solid var(--panel-border, #e1e8ed);
+      padding-bottom: 8px;
+    }
+    
+    .control-group {
+      margin-bottom: 16px;
+      width: 100%;
+      overflow: visible;
+      display: block;
+    }
+    
+    .control-group:last-child {
+      margin-bottom: 0;
+    }
+    
+    .control-title {
+      font-size: 12px;
+      color: var(--panel-text-secondary, #666);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+    
+    button {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--button-border, #ddd);
+      border-radius: 6px;
+      background: var(--button-bg, #fff);
+      color: var(--button-text, #333);
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s ease;
+      margin-bottom: 4px;
+    }
+    
+    button:hover {
+      background: var(--button-hover-bg, #f5f5f5);
+      border-color: var(--button-hover-border, #bbb);
+    }
+    
+    button.active {
+      background: var(--button-active-bg, #1890ff);
+      color: white;
+      border-color: var(--button-active-bg, #1890ff);
+    }
+    
+    .checkbox-control {
       display: flex;
       align-items: center;
-      margin-bottom: 16px;
+      padding: 6px;
+      margin-bottom: 4px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.2s ease;
     }
     
-    .header img {
-      width: 24px;
-      height: 24px;
+    .checkbox-control:hover {
+      background: var(--checkbox-hover-bg, #f5f5f5);
+    }
+    
+    .checkbox-control input {
       margin-right: 8px;
     }
     
-    .header h1 {
-      font-size: 18px;
+    .checkbox-control label {
+      font-size: 12px;
+      color: var(--panel-text, #333);
+      cursor: pointer;
       margin: 0;
     }
     
-    .section {
-      margin-bottom: 16px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid #eee;
+    /* 滑块控件样式 */
+    .range-control {
+      margin-top: 8px;
+      width: 100%;
     }
     
-    .section:last-child {
-      border-bottom: none;
-    }
-    
-    .section-title {
-      font-size: 16px;
-      font-weight: 500;
-      margin-top: 0;
-      margin-bottom: 8px;
-    }
-    
-    .option {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    .range-control label {
+      display: block;
+      font-size: 12px;
+      color: var(--panel-text, #333);
       margin-bottom: 6px;
     }
     
-    .option label {
-      flex-grow: 1;
+    .range-control input[type="range"] {
+      width: 100%;
+      height: 5px;
+      border-radius: 5px;
+      background: var(--panel-border, #e1e8ed);
+      outline: none;
+      opacity: 0.7;
+      -webkit-transition: opacity .2s;
+      transition: opacity .2s;
+    }
+    
+    .range-control input[type="range"]:hover {
+      opacity: 1;
+    }
+    
+    .range-control input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: var(--button-active-bg, #1890ff);
       cursor: pointer;
+    }
+    
+    .range-control input[type="range"]::-moz-range-thumb {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: var(--button-active-bg, #1890ff);
+      cursor: pointer;
+    }
+    
+    /* 深色模式样式 */
+    html.dark {
+      --panel-bg: #2f3349;
+      --panel-border: #484b6a;
+      --panel-text: #ffffff;
+      --panel-text-secondary: #b3b3b3;
+      --button-bg: #404466;
+      --button-text: #ffffff;
+      --button-border: #484b6a;
+      --button-hover-bg: #4a4f73;
+      --button-hover-border: #5a5f83;
+      --button-active-bg: #1890ff;
+      --checkbox-hover-bg: #404466;
+    }
+    
+    /* 浅色模式样式 */
+    html.light {
+      --panel-bg: #ffffff;
+      --panel-border: #e1e8ed;
+      --panel-text: #333333;
+      --panel-text-secondary: #666666;
+      --button-bg: #ffffff;
+      --button-text: #333333;
+      --button-border: #dddddd;
+      --button-hover-bg: #f5f5f5;
+      --button-hover-border: #bbbbbb;
+      --button-active-bg: #1890ff;
+      --checkbox-hover-bg: #f5f5f5;
+    }
+    
+    .status-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+    
+    .status-indicator.on {
+      background: #52c41a;
+    }
+    
+    .status-indicator.off {
+      background: #f5222d;
+    }
+    
+    /* 单选框样式 */
+    .radio-control {
+      display: flex;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+    
+    .radio-control input[type="radio"] {
+      margin-right: 5px;
+    }
+    
+    .radio-control label {
+      margin-right: 12px;
+      font-size: 12px;
+      color: var(--panel-text, #333);
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+    
+    /* 小按钮样式 */
+    .small-button {
+      font-size: 12px;
+      padding: 5px 10px;
+      margin: 5px 0;
+      background: var(--button-secondary-bg, #f0f7ff);
+      border: 1px solid var(--button-secondary-border, #95bfff);
+      color: var(--button-secondary-text, #1890ff);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .small-button:hover {
+      background: var(--button-secondary-hover-bg, #e6f2ff);
+      border-color: var(--button-secondary-hover-border, #69a2ff);
     }
     
     .footer {
       font-size: 12px;
-      color: #999;
+      color: var(--panel-text-secondary, #666);
       text-align: center;
       margin-top: 16px;
-    }
-    
-    /* 开关样式 */
-    .switch {
-      position: relative;
-      display: inline-block;
-      width: 36px;
-      height: 20px;
-    }
-    
-    .switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-    
-    .slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: #ccc;
-      transition: .4s;
-      border-radius: 20px;
-    }
-    
-    .slider:before {
-      position: absolute;
-      content: "";
-      height: 16px;
-      width: 16px;
-      left: 2px;
-      bottom: 2px;
-      background-color: white;
-      transition: .4s;
-      border-radius: 50%;
-    }
-    
-    input:checked + .slider {
-      background-color: #50a14f;
-    }
-    
-    input:focus + .slider {
-      box-shadow: 0 0 1px #50a14f;
-    }
-    
-    input:checked + .slider:before {
-      transform: translateX(16px);
-    }
-    
-    /* 背景透明度设置 */
-    .range-control {
-      width: 100%;
-      padding: 6px 0;
-    }
-    
-    .range-control input {
-      width: 100%;
-    }
-    
-    .range-value {
-      font-size: 12px;
-      color: #666;
-      text-align: right;
-      margin-top: 2px;
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <img src="icons/icon48.png" alt="微博增强">
-    <h1>微博增强设置</h1>
-  </div>
-  
-  <div class="section">
-    <h2 class="section-title">主题设置</h2>
-    <div class="option">
-      <label for="theme-override">手动设置主题</label>
-      <label class="switch">
-        <input type="checkbox" id="theme-override">
-        <span class="slider"></span>
-      </label>
-    </div>
+  <div class="popup-container">
+    <h3>微博增强</h3>
     
-    <div id="theme-mode-option" class="option" style="display: none;">
-      <label for="theme-dark-mode">深色模式</label>
-      <label class="switch">
-        <input type="checkbox" id="theme-dark-mode">
-        <span class="slider"></span>
-      </label>
-    </div>
-  </div>
-  
-  <div class="section">
-    <h2 class="section-title">宽屏设置</h2>
-    <div class="option">
-      <label for="widescreen-enabled">启用宽屏模式</label>
-      <label class="switch">
-        <input type="checkbox" id="widescreen-enabled">
-        <span class="slider"></span>
-      </label>
-    </div>
-    
-    <div class="option">
-      <label for="widescreen-loose">大幅度宽屏显示</label>
-      <label class="switch">
+    <div class="control-group">
+      <div class="control-title">宽屏功能</div>
+      <button id="widescreen-toggle">
+        <span class="status-indicator"></span>
+        <span id="widescreen-status">加载中...</span>
+      </button>
+      <div class="checkbox-control">
         <input type="checkbox" id="widescreen-loose">
-        <span class="slider"></span>
-      </label>
-    </div>
-    
-    <div class="option">
-      <label for="widescreen-ui-visible">显示UI控制面板</label>
-      <label class="switch">
-        <input type="checkbox" id="widescreen-ui-visible">
-        <span class="slider"></span>
-      </label>
-    </div>
-  </div>
-  
-  <div class="section">
-    <h2 class="section-title">背景设置</h2>
-    <div class="option">
-      <label for="background-enabled">启用自定义背景</label>
-      <label class="switch">
-        <input type="checkbox" id="background-enabled">
-        <span class="slider"></span>
-      </label>
-    </div>
-    
-    <div class="option">
-      <label for="background-type">背景图片来源</label>
-      <select id="background-type" style="margin-left: 10px;">
-        <option value="bing">必应每日一图</option>
-        <option value="custom">自定义图片URL</option>
-      </select>
-    </div>
-    
-    <div id="custom-url-container" style="display: none; margin: 8px 0;">
-      <input type="text" id="background-url" placeholder="输入自定义背景图片URL" style="width: 100%; padding: 4px;">
-    </div>
-    
-    <div class="range-control">
-      <label for="background-opacity">背景透明度</label>
-      <input type="range" min="0" max="1" step="0.05" id="background-opacity" value="0.2">
-      <div class="range-value"><span id="background-opacity-value">20%</span></div>
-    </div>
-    
-    <div class="option">
-      <label for="content-transparency">内容半透明效果</label>
-      <label class="switch">
-        <input type="checkbox" id="content-transparency">
-        <span class="slider"></span>
-      </label>
-    </div>
-    
-    <div id="content-transparency-options" style="margin-top: 8px;">
-      <div class="range-control">
-        <label for="content-opacity">内容透明度</label>
-        <input type="range" min="0.5" max="1" step="0.05" id="content-opacity" value="0.7">
-        <div class="range-value"><span id="content-opacity-value">70%</span></div>
+        <label for="widescreen-loose">更宽模式</label>
       </div>
+    </div>
+    
+    <div class="control-group">
+      <div class="control-title">主题切换</div>
+      <button id="theme-toggle">
+        <span class="status-indicator"></span>
+        <span id="theme-status">切换主题</span>
+      </button>
+      <button id="theme-reset">重置跟随</button>
+    </div>
+    
+    <div class="control-group" id="background-control-group">
+      <div class="control-title">背景设置</div>
+      <button id="background-toggle">
+        <span class="status-indicator"></span>
+        <span id="background-status">加载中...</span>
+      </button>
       
-      <div class="range-control">
-        <label for="content-blur">内容模糊度</label>
-        <input type="range" min="0" max="10" step="1" id="content-blur" value="5">
-        <div class="range-value"><span id="content-blur-value">5px</span></div>
+      <div id="background-options" style="display:none;">
+        <div class="radio-control">
+          <input type="radio" id="bing-background" name="background-type" value="bing">
+          <label for="bing-background">必应每日图片</label>
+          
+          <input type="radio" id="custom-background" name="background-type" value="custom">
+          <label for="custom-background">自定义图片</label>
+        </div>
+        
+        <div id="custom-url-container" style="display: none; margin: 8px 0;">
+          <input type="text" id="background-url" placeholder="输入自定义背景图片URL" style="width: 100%; padding: 4px;">
+        </div>
+        
+        <div class="range-control">
+          <label for="background-opacity">背景不透明度: <span id="background-opacity-value">20%</span></label>
+          <input type="range" id="background-opacity" min="1" max="100" value="20">
+        </div>
+        
+        <div class="checkbox-control" id="content-transparency-container">
+          <input type="checkbox" id="content-transparency-toggle">
+          <label for="content-transparency-toggle">微博内容半透明</label>
+        </div>
+        
+        <div class="range-control" id="content-opacity-container" style="display:none;">
+          <label for="content-opacity">内容不透明度: <span id="content-opacity-value">70%</span></label>
+          <input type="range" id="content-opacity" min="20" max="95" value="70">
+        </div>
       </div>
     </div>
-  </div>
-  
-  <div class="section">
-    <h2 class="section-title">通知设置</h2>
-    <div class="option">
-      <label for="notify-enabled">显示功能通知</label>
-      <label class="switch">
-        <input type="checkbox" id="notify-enabled">
-        <span class="slider"></span>
-      </label>
+    
+    <div class="control-group">
+      <div class="control-title">其他功能</div>
+      <div class="checkbox-control">
+        <input type="checkbox" id="notification-toggle">
+        <label for="notification-toggle">启用通知</label>
+      </div>
     </div>
   </div>
   

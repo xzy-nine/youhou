@@ -7,6 +7,13 @@
 
 // 创建统一控制面板
 function createControlPanel() {
+  // 确保DOM已加载
+  if (!document.body || !document.head) {
+    console.warn('[微博增强] DOM未完全加载，延迟创建控制面板');
+    setTimeout(createControlPanel, 500);
+    return;
+  }
+  
   // 如果面板已存在，根据visible状态显示或隐藏
   const existingPanel = document.querySelector('.weibo-enhance-panel');
   if (existingPanel) {
@@ -844,36 +851,13 @@ function togglePanelCollapse(panel, collapse) {
   saveWidescreenConfig();
 }
 
-// 注册菜单命令
+// 注册菜单命令 - Chrome扩展版本
 function registerMenus() {
-  GM_registerMenuCommand('显示/隐藏控制面板', function() {
-    widescreenStore.ui_visible = !widescreenStore.ui_visible;
-    saveWidescreenConfig();
-    
-    // 动态显示/隐藏控制面板，而不是重载页面
-    const panel = document.querySelector('.weibo-enhance-panel');
-    if (panel) {
-      panel.style.display = widescreenStore.ui_visible ? '' : 'none';
-    } else if (widescreenStore.ui_visible) {
-      createControlPanel();
-    }
-    
-    simpleNotify(widescreenStore.ui_visible ? '控制面板已显示' : '控制面板已隐藏');
-  });
-  GM_registerMenuCommand('背景设置', function() {
-    // 切换背景设置并重建控制面板
-    toggleBackgroundEnabled();
-    
-    // 更新控制面板
-    const panel = document.querySelector('.weibo-enhance-panel');
-    if (panel) {
-      panel.remove();
-      createControlPanel();
-    }
-    
-    simpleNotify(backgroundStore.enabled ? '背景功能已启用' : '背景功能已关闭');
-  });
-  GM_registerMenuCommand('重置所有设置', function() {
+  // Chrome扩展不需要菜单注册，使用popup面板
+  console.log('[微博增强] Chrome扩展环境，菜单功能已整合到popup面板中');
+  
+  // 为兼容性保留重置功能，但改为内部函数
+  window.weiboResetAllSettings = async function() {
     if (confirm('确定要重置所有设置吗？页面将会刷新。')) {
       try {
         // 明确列出要删除的配置键
@@ -885,40 +869,29 @@ function registerMenus() {
           'widescreen_ui_visible', 
           'widescreen_panel_expanded', 
           'widescreen_panel_position',
-            // 背景功能相关
+          // 背景功能相关
           'background_enabled',
           'background_type',
           'background_url',
           'background_opacity',
+          'background_content_transparency',
+          'background_content_opacity',
+          'background_content_blur',
           'background_notify_enabled',
           
           // 主题相关
           'userOverride',
           'userThemeMode',
+          'lastSystemMode',
           
           // 必应图片缓存
           'weibo_bing_background'
         ];
         
         // 删除指定的键值对
-        configKeys.forEach(key => {
+        for (const key of configKeys) {
           console.log(`[微博增强] 正在删除配置项: ${key}`);
-          GM_deleteValue(key);
-        });
-        
-        // 尝试使用GM_listValues获取所有键并删除（以防有其他未知键）
-        if (typeof GM_listValues === 'function') {
-          try {
-            const remainingKeys = GM_listValues();
-            remainingKeys.forEach(key => {
-              if (key.includes('weibo') || key.includes('widescreen') || key.includes('blur')) {
-                console.log(`[微博增强] 删除其他相关配置: ${key}`);
-                GM_deleteValue(key);
-              }
-            });
-          } catch (e) {
-            console.warn('[微博增强] GM_listValues不可用，跳过未知键清理', e);
-          }
+          await chromeStorage.deleteValue(key);
         }
         
         // 通知用户
@@ -929,9 +902,10 @@ function registerMenus() {
           window.location.reload();
         }, 1000);
       } catch (error) {
-        console.error('[微博增强] 重置设置失败:', error);
-        simpleNotify('重置设置时发生错误，请查看控制台');
-      }
+        console.error('[微博增强] 重置配置失败:', error);
+        simpleNotify('重置配置失败，请检查控制台');      }
     }
-  });
+  };
+  
+  console.log('[微博增强] 如需重置所有设置，请在控制台执行: weiboResetAllSettings()');
 }
