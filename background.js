@@ -163,6 +163,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     return true;
   }
+  
+  // 处理主题变化消息
+  if (message.action === 'themeChanged') {
+    console.log(`[微博增强后台] 收到主题变化消息: ${message.isDark ? '深色' : '浅色'}`);
+    
+    // 更新扩展图标（如果需要的话）
+    const iconPath = message.isDark ? 'icons/icon19.png' : 'icons/icon19.png'; // 可以设置不同的图标
+    
+    chrome.action.setIcon({
+      path: {
+        '16': 'icons/icon16.png',
+        '19': iconPath,
+        '32': 'icons/icon32.png',
+        '48': 'icons/icon48.png'
+      }
+    }).catch(err => {
+      // 忽略设置图标失败的错误
+      console.log('[微博增强后台] 设置图标失败（正常）:', err);
+    });
+    
+    sendResponse({ success: true });
+    return false;
+  }
 });
 
 // 必应图片获取功能

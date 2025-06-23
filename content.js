@@ -11,10 +11,11 @@ async function initialize() {
       });
     }    // 首先初始化存储
     const storageInitialized = await initStorage();
-    console.log('[微博增强] 存储初始化结果:', storageInitialized);
-
-    // 设置主题系统（优先初始化主题）
+    console.log('[微博增强] 存储初始化结果:', storageInitialized);    // 设置主题系统（优先初始化主题）
     setupThemeSystem();
+    
+    // 设置主题联动系统
+    setupThemeSync();
         // 优先应用背景（如果启用）
     // 这确保页面一开始就有背景，避免白屏
     if (typeof applyBackground === 'function') {
@@ -103,13 +104,14 @@ async function initialize() {
         if (typeof window.diagnoseBackgroundStatus === 'function') availableFunctions.push('diagnoseBackgroundStatus()');
         if (typeof window.reapplyBackground === 'function') availableFunctions.push('reapplyBackground()');
         if (typeof window.forceApplyBackground === 'function') availableFunctions.push('forceApplyBackground()');
-        if (typeof window.cleanupUnintendedTransparency === 'function') availableFunctions.push('cleanupUnintendedTransparency()');
-        if (typeof window.weiboRefreshBingBackground === 'function') availableFunctions.push('weiboRefreshBingBackground()');
+        if (typeof window.cleanupUnintendedTransparency === 'function') availableFunctions.push('cleanupUnintendedTransparency()');        if (typeof window.weiboRefreshBingBackground === 'function') availableFunctions.push('weiboRefreshBingBackground()');
         if (typeof window.weiboSetBackgroundType === 'function') {
           availableFunctions.push('weiboSetBackgroundType("bing")');
           availableFunctions.push('weiboSetBackgroundType("gradient")');
           availableFunctions.push('weiboSetBackgroundType("custom")');
-        }
+        }        if (typeof window.testThemeSync === 'function') availableFunctions.push('testThemeSync()');
+        if (typeof window.toggleTheme === 'function') availableFunctions.push('toggleTheme()');
+        if (typeof window.testContentTransparencyTheme === 'function') availableFunctions.push('testContentTransparencyTheme()');
         
         console.log('%c[微博增强] 可用的调试命令:', 'color: #17a2b8; font-weight: bold;');
         availableFunctions.forEach(func => {
@@ -132,6 +134,36 @@ async function initialize() {
   }
 }
 
+// 设置主题联动系统
+function setupThemeSync() {
+  // 监听全局主题变化事件
+  window.addEventListener('weiboThemeChanged', (event) => {
+    const isDark = event.detail.isDark;
+    console.log(`[微博增强] 收到全局主题变化事件: ${isDark ? '深色' : '浅色'}`);
+    
+    // 通知popup界面主题变化
+    try {
+      chrome.runtime.sendMessage({
+        action: 'themeChanged',
+        isDark: isDark
+      });
+    } catch (e) {
+      // 消息发送失败是正常的，popup可能未打开
+    }
+  });
+  
+  // 监听微博原生的主题变化事件
+  window.addEventListener('themechange', (event) => {
+    const isDark = event.detail.theme === 'dark';
+    console.log(`[微博增强] 收到微博原生主题变化事件: ${isDark ? '深色' : '浅色'}`);
+    
+    // 确保所有模块都能响应
+    window.dispatchEvent(new CustomEvent('weiboThemeChanged', {
+      detail: { isDark: isDark }
+    }));
+  });
+}
+
 // 注册菜单命令
 function registerMenus() {
   // Chrome扩展不需要菜单注册，使用popup面板
@@ -148,13 +180,19 @@ registerMenus();
 
 // 处理来自弹出窗口的设置更新消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  switch(message.action) {
-    case 'updateTheme':
+  switch(message.action) {    case 'updateTheme':
       userOverride = message.userOverride;
       if (message.userThemeMode !== undefined) {
         userThemeMode = message.userThemeMode;
       }
+      
+      // 重新设置主题系统
       setupThemeSystem();
+      
+      // 如果是用户手动设置，立即应用主题
+      if (userOverride && message.userThemeMode !== undefined) {
+        setWebsiteMode(message.userThemeMode, true);
+      }
       break;
       
     case 'updateWidescreen':
@@ -228,3 +266,47 @@ if (!window.reapplyBackground) {
     }
   };
 }
+
+// 添加调试函数到全局，方便用户测试主题联动
+window.testThemeSync = function() {
+  console.log('%c[微博增强] 开始测试主题联动...', 'color: #17a2b8; font-weight: bold;');
+  
+  const currentMode = getCurrentWebsiteMode();
+  const newMode = !currentMode;
+  
+  console.log(`%c[微博增强] 当前模式: ${currentMode ? '深色' : '浅色'}`, 'color: #17a2b8;');
+  console.log(`%c[微博增强] 切换至: ${newMode ? '深色' : '浅色'}`, 'color: #17a2b8;');
+  
+  // 强制切换主题
+  setWebsiteMode(newMode, true);
+  
+  // 显示测试结果
+  setTimeout(() => {
+    const verifyMode = getCurrentWebsiteMode();
+    if (verifyMode === newMode) {
+      simpleNotify(`✅ 主题联动测试成功！已切换至${newMode ? '深色' : '浅色'}模式`);
+      console.log('%c[微博增强] 主题联动测试通过', 'color: #28a745; font-weight: bold;');
+    } else {
+      simpleNotify(`❌ 主题联动测试失败！切换未生效`);
+      console.log('%c[微博增强] 主题联动测试失败', 'color: #dc3545; font-weight: bold;');
+    }
+  }, 500);
+};
+
+// 添加快速切换主题的函数
+window.toggleTheme = function() {
+  const currentMode = getCurrentWebsiteMode();
+  const newMode = !currentMode;
+  
+  console.log(`%c[微博增强] 手动切换主题: ${currentMode ? '深色' : '浅色'} → ${newMode ? '深色' : '浅色'}`, 'color: #17a2b8;');
+  
+  // 标记为用户手动操作
+  userOverride = true;
+  userThemeMode = newMode;
+  saveThemeConfig(true, newMode);
+  
+  // 应用主题
+  setWebsiteMode(newMode, true);
+  
+  simpleNotify(`已切换至${newMode ? '深色' : '浅色'}模式`);
+};

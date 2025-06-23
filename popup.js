@@ -333,6 +333,32 @@ function setupEventListeners() {
   });
 }
 
+// 监听来自content script的主题变化消息
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'themeChanged') {
+    console.log(`[微博增强弹出界面] 收到主题变化消息: ${message.isDark ? '深色' : '浅色'}`);
+    
+    // 更新popup界面主题
+    setThemeMode(message.isDark);
+    
+    // 更新设置状态
+    if (message.isDark !== undefined) {
+      userSettings.userThemeMode = message.isDark;
+      updateUI();
+    }
+  }
+});
+
+// 监听系统主题变化
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+  // 只有在未手动覆盖时才跟随系统主题
+  if (!userSettings.userOverride) {
+    console.log(`[微博增强弹出界面] 系统主题变化: ${e.matches ? '深色' : '浅色'}`);
+    setThemeMode(e.matches);
+    updateUI();
+  }
+});
+
 function sendMessageToContentScript(message) {
   // 发送消息到当前活动标签页的内容脚本
   chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {

@@ -469,9 +469,6 @@ function setupBackgroundPersistence() {
                     backgroundElement.style.width = '100vw';
                     backgroundElement.style.height = '100vh';
                     backgroundElement.style.pointerEvents = 'none';
-                    backgroundElement.style.display = 'block';
-                    backgroundElement.style.visibility = 'visible';
-                    backgroundElement.style.opacity = backgroundStore.opacity.toString();
                 }
                 
                 // 重新应用容器样式，防止新加载的内容覆盖背景                forceApplyContainerStyles();
@@ -507,21 +504,21 @@ function addContentTransparencyStyles() {
     }    // 获取用户设置的模糊程度和不透明度
     const blurPixels = backgroundStore.content_blur || 5;
     const opacity = backgroundStore.content_opacity !== undefined ? backgroundStore.content_opacity : 0.3;
-    
-    // 检测深色模式 - 支持多种深色主题类名
-    const isDarkMode = document.documentElement && (
-        document.documentElement.classList.contains('woo-theme-dark') ||
-        document.documentElement.classList.contains('dark') ||
-        document.documentElement.classList.contains('theme-dark') ||
-        document.documentElement.classList.contains('dark-mode') ||
-        document.body.classList.contains('woo-theme-dark') ||
-        document.body.classList.contains('dark') ||
-        document.body.classList.contains('theme-dark') ||
-        document.body.classList.contains('dark-mode') ||
-        // 检查CSS变量或计算样式
-        window.getComputedStyle(document.documentElement).backgroundColor.includes('rgb(0') ||
-        window.getComputedStyle(document.body).backgroundColor.includes('rgb(0')
-    );
+      // 检测深色模式 - 优先使用标准的微博主题类名
+    const isDarkMode = document.body && document.body.classList.contains('woo-theme-dark') ||
+                       document.documentElement && document.documentElement.classList.contains('woo-theme-dark') ||
+                       document.documentElement && document.documentElement.getAttribute('data-theme') === 'dark' ||
+                       // 备用检测方法
+                       (document.documentElement && (
+                           document.documentElement.classList.contains('dark') ||
+                           document.documentElement.classList.contains('theme-dark') ||
+                           document.documentElement.classList.contains('dark-mode')
+                       )) ||
+                       (document.body && (
+                           document.body.classList.contains('dark') ||
+                           document.body.classList.contains('theme-dark') ||
+                           document.body.classList.contains('dark-mode')
+                       ));
     
     console.log('[微博背景] 深色模式检测结果:', {
         isDarkMode: isDarkMode,
@@ -1236,3 +1233,95 @@ function reinforceBackgroundDisplay() {
 
 // 定期强化背景显示
 setInterval(reinforceBackgroundDisplay, 3000);
+
+/**
+ * 响应主题变化的函数
+ */
+function updateBackgroundTheme(isDark) {
+  // 如果背景功能未启用，但内容透明度可能启用，仍需更新
+  console.log(`[微博背景] 响应主题变化: ${isDark ? '深色' : '浅色'}`);
+  
+  // 如果背景功能启用，更新背景样式
+  if (backgroundStore.enabled) {
+    const existingBg = document.querySelector('#weibo-blur-background');
+    if (existingBg) {
+      // 更新现有背景的主题相关样式
+      updateBackgroundOpacity(existingBg, isDark);
+    }
+  }
+  
+  // 无论背景是否启用，都需要更新内容透明度
+  if (backgroundStore.content_transparency) {
+    updateContentTransparency();
+  }
+}
+
+// 更新背景不透明度以适应主题
+function updateBackgroundOpacity(backgroundElement, isDark) {
+  if (!backgroundElement) return;
+  
+  const opacity = backgroundStore.opacity;
+  const bgColor = isDark ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`;
+  
+  // 更新蒙层颜色
+  const overlay = backgroundElement.querySelector('.background-overlay');
+  if (overlay) {
+    overlay.style.backgroundColor = bgColor;
+  }
+}
+
+// 更新内容透明度以适应主题变化
+function updateContentTransparency() {
+  if (!backgroundStore.content_transparency) {
+    return;
+  }
+  
+  console.log('[微博背景] 更新内容透明度以适应主题变化');
+  
+  // 重新应用内容透明度样式，这会检测当前主题并应用正确的背景色
+  addContentTransparencyStyles();
+}
+
+// 监听全局主题变化事件
+window.addEventListener('weiboThemeChanged', (event) => {
+  console.log(`[微博背景] 收到全局主题变化事件: ${event.detail.isDark ? '深色' : '浅色'}`);
+  updateBackgroundTheme(event.detail.isDark);
+});
+
+// 添加测试内容透明度主题联动的函数
+window.testContentTransparencyTheme = function() {
+  console.log('%c[微博背景] 开始测试内容透明度主题联动...', 'color: #17a2b8; font-weight: bold;');
+  
+  if (!backgroundStore.content_transparency) {
+    console.log('%c[微博背景] 内容透明度功能未启用', 'color: #ffc107;');
+    simpleNotify('请先启用内容透明度功能再测试');
+    return;
+  }
+  
+  const currentTheme = document.body.classList.contains('woo-theme-dark') ? '深色' : '浅色';
+  console.log(`%c[微博背景] 当前主题: ${currentTheme}`, 'color: #17a2b8;');
+  
+  // 强制更新内容透明度
+  updateContentTransparency();
+  
+  // 检查样式是否正确应用
+  const transparencyStyle = document.getElementById('weibo-background-transparency-style');
+  if (transparencyStyle) {
+    const isDark = document.body.classList.contains('woo-theme-dark');
+    const expectedColor = isDark ? 'rgba(0, 0, 0,' : 'rgba(255, 255, 255,';
+    const hasCorrectTheme = transparencyStyle.textContent.includes(expectedColor);
+    
+    if (hasCorrectTheme) {
+      simpleNotify(`✅ 内容透明度主题联动正常！当前为${currentTheme}模式`);
+      console.log('%c[微博背景] 内容透明度主题联动测试通过', 'color: #28a745; font-weight: bold;');
+    } else {
+      simpleNotify(`❌ 内容透明度主题联动异常！主题检测可能有问题`);
+      console.log('%c[微博背景] 内容透明度主题联动测试失败', 'color: #dc3545; font-weight: bold;');
+      console.log('期望的颜色前缀:', expectedColor);
+      console.log('实际的样式内容:', transparencyStyle.textContent.substring(0, 200));
+    }
+  } else {
+    simpleNotify(`❌ 内容透明度样式未找到！`);
+    console.log('%c[微博背景] 未找到内容透明度样式元素', 'color: #dc3545; font-weight: bold;');
+  }
+};

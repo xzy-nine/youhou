@@ -122,9 +122,11 @@ function setWebsiteMode(isDark, fromUserAction = false) {
         }
         
         console.log(`[微博主题] 已设置为${isDark ? '深色' : '浅色'}模式`);
-        
-        // 更新评论悬浮窗的主题
+          // 更新评论悬浮窗的主题
         updateCommentModalsTheme(isDark);
+        
+        // 通知所有模块主题已改变
+        notifyAllModulesThemeChange(isDark);
         
         // 触发一个自定义事件，让微博的JS知道主题已改变
         try {
@@ -257,9 +259,11 @@ function monitorLocalStorage() {
           // 记录用户手动覆盖状态
           userOverride = true;
           saveThemeConfig(true, newMode);
-          
-          // 更新评论悬浮窗的主题
+            // 更新评论悬浮窗的主题
           updateCommentModalsTheme(newMode);
+          
+          // 通知所有模块主题已改变
+          notifyAllModulesThemeChange(newMode);
             
           // 只有当状态变化，或者是第一次通知时才显示
           if (lastNotifiedOverrideState !== true || lastNotifiedMode !== newMode || !hasShownInitialNotification) {
@@ -299,9 +303,11 @@ function monitorLocalStorage() {
             // 记录用户手动覆盖和当前主题状态
             userOverride = true;
             saveThemeConfig(true, newDarkMode);
-            
-            // 更新评论悬浮窗的主题
+              // 更新评论悬浮窗的主题
             updateCommentModalsTheme(newDarkMode);
+            
+            // 通知所有模块主题已改变
+            notifyAllModulesThemeChange(newDarkMode);
             
             // 只有当状态变化时才通知
             if (lastNotifiedMode !== newDarkMode || lastNotifiedOverrideState !== true) {
@@ -316,6 +322,36 @@ function monitorLocalStorage() {
       }
     }
   });
+}
+
+// 通知所有模块主题已改变
+function notifyAllModulesThemeChange(isDark) {
+  // 更新背景图片模块的主题感知
+  if (typeof updateBackgroundTheme === 'function') {
+    updateBackgroundTheme(isDark);
+  }
+  
+  // 更新通知模块的主题
+  if (typeof updateNotificationTheme === 'function') {
+    updateNotificationTheme(isDark);
+  }
+  
+  // 更新popup界面的主题（如果存在）
+  try {
+    chrome.runtime.sendMessage({
+      action: 'themeChanged',
+      isDark: isDark
+    });
+  } catch (e) {
+    // 在content script中发送消息到popup可能失败，这是正常的
+  }
+  
+  // 触发全局主题变化事件
+  window.dispatchEvent(new CustomEvent('weiboThemeChanged', {
+    detail: { isDark: isDark }
+  }));
+  
+  console.log(`[微博主题] 已通知所有模块主题变更为: ${isDark ? '深色' : '浅色'}`);
 }
 
 
