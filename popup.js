@@ -19,8 +19,22 @@ let userSettings = {
   background_notify_enabled: false
 };
 
+// 防抖更新UI函数
+let updateUITimeout = null;
+function debouncedUpdateUI() {
+  if (updateUITimeout) {
+    clearTimeout(updateUITimeout);
+  }
+  updateUITimeout = setTimeout(() => {
+    updateUI();
+    updateUITimeout = null;
+  }, 10); // 10ms 防抖
+}
+
 // 设置主题模式
 function setThemeMode(isDark) {
+  console.log('[微博增强 Popup] 设置主题模式:', isDark ? '深色' : '浅色');
+  
   if (isDark) {
     document.documentElement.classList.add('dark');
     document.documentElement.classList.remove('light');
@@ -28,36 +42,51 @@ function setThemeMode(isDark) {
     document.documentElement.classList.add('light');
     document.documentElement.classList.remove('dark');
   }
+  
+  console.log('[微博增强 Popup] 当前HTML类名:', document.documentElement.className);
 }
 
 // 页面加载时初始化设置
 document.addEventListener('DOMContentLoaded', async () => {
+  console.log('[微博增强 Popup] DOM内容加载完成，开始初始化');
+  
   // 应用默认主题
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  console.log('[微博增强 Popup] 系统主题偏好:', prefersDark ? '深色' : '浅色');
   setThemeMode(prefersDark);
-  
-  // 从存储中加载设置
+    // 从存储中加载设置
   chrome.storage.local.get(null, (settings) => {
+    console.log('[微博增强 Popup] 从存储加载设置:', settings);
     // 更新设置对象
     userSettings = { ...userSettings, ...settings };
     
-    // 更新UI状态
-    updateUI();
-    
     // 根据用户设置更新主题
     if (userSettings.userOverride) {
+      console.log('[微博增强 Popup] 应用用户覆盖主题:', userSettings.userThemeMode ? '深色' : '浅色');
       setThemeMode(userSettings.userThemeMode);
     }
+    
+    // 延迟更新UI确保所有设置都已加载
+    setTimeout(() => {
+      updateUI();
+    }, 100);
   });
-  
-  // 设置事件监听器
+    // 设置事件监听器
   setupEventListeners();
   
   // 监听来自content script的主题变化消息
   setupMessageListener();
+  
+  // 主动请求当前页面的主题状态同步
+  requestThemeSync();
 });
 
 function updateUI() {
+  console.log('[微博增强 Popup] 更新UI，当前设置:', {
+    userOverride: userSettings.userOverride,
+    userThemeMode: userSettings.userThemeMode
+  });
+  
   // 更新宽屏功能状态
   const widescreenToggle = document.getElementById('widescreen-toggle');
   const widescreenStatus = document.getElementById('widescreen-status');
@@ -71,17 +100,41 @@ function updateUI() {
     widescreenLooseCheckbox.checked = userSettings.widescreen_loose || false;
   }
   
-  // 更新主题按钮状态
-  const themeToggle = document.getElementById('theme-toggle');
-  const themeIndicator = themeToggle.querySelector('.status-indicator');
-  
-  if (userSettings.userOverride) {
-    themeIndicator.className = `status-indicator ${userSettings.userThemeMode ? 'on' : 'off'}`;
-    document.getElementById('theme-status').textContent = userSettings.userThemeMode ? '深色模式' : '浅色模式';
-  } else {
-    themeIndicator.className = 'status-indicator off';
-    document.getElementById('theme-status').textContent = '跟随系统';
-  }
+  // 更新主题按钮状态 - 使用 requestAnimationFrame 确保DOM更新
+  requestAnimationFrame(() => {
+    const themeToggle = document.getElementById('theme-toggle');
+    const themeStatus = document.getElementById('theme-status');
+    const themeIndicator = themeToggle.querySelector('.status-indicator');
+    
+    if (userSettings.userOverride) {
+      const newText = userSettings.userThemeMode ? '深色模式' : '浅色模式';
+      const newClass = userSettings.userThemeMode ? 'active' : '';
+      const indicatorClass = `status-indicator ${userSettings.userThemeMode ? 'on' : 'off'}`;
+      
+      // 确保文字更新
+      themeStatus.textContent = newText;
+      themeToggle.className = newClass;
+      themeIndicator.className = indicatorClass;
+      
+      console.log('[微博增强 Popup] 主题按钮更新为用户模式:', newText, '类名:', newClass);
+      
+      // 强制重绘
+      themeStatus.style.display = 'none';
+      themeStatus.offsetHeight; // 触发重排
+      themeStatus.style.display = '';
+    } else {
+      themeStatus.textContent = '跟随系统';
+      themeToggle.className = '';
+      themeIndicator.className = 'status-indicator off';
+      
+      console.log('[微博增强 Popup] 主题按钮更新为跟随系统模式');
+      
+      // 强制重绘
+      themeStatus.style.display = 'none';
+      themeStatus.offsetHeight; // 触发重排
+      themeStatus.style.display = '';
+    }
+  });
   
   // 更新背景设置
   const backgroundToggle = document.getElementById('background-toggle');
@@ -305,7 +358,11 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
   if (!userSettings.userOverride) {
     console.log(`[微博增强弹出界面] 系统主题变化: ${e.matches ? '深色' : '浅色'}`);
     setThemeMode(e.matches);
-    updateUI();
+    
+    // 延迟更新UI状态，确保按钮文字正确显示
+    setTimeout(() => {
+      updateUI();
+    }, 30);
   }
 });
 
@@ -336,8 +393,7 @@ function setupMessageListener() {
   // 监听来自background或content script的消息
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('[微博增强 Popup] 收到消息:', message);
-    
-    if (message.action === 'themeChanged') {
+      if (message.action === 'themeChanged') {
       console.log('[微博增强 Popup] 收到主题变化消息:', message);
       
       // 更新用户设置
@@ -358,14 +414,14 @@ function setupMessageListener() {
         const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
         setThemeMode(systemTheme);
       }
-      
-      // 更新UI状态
-      updateUI();
+        // 立即更新UI状态，确保按钮文字同步更新
+      setTimeout(() => {
+        updateUI();
+      }, 30);
       
       sendResponse({ success: true });
     }
-    
-    if (message.action === 'themeReset') {
+      if (message.action === 'themeReset') {
       console.log('[微博增强 Popup] 收到主题重置消息:', message);
       
       // 更新用户设置
@@ -377,12 +433,13 @@ function setupMessageListener() {
         userOverride: false,
         userThemeMode: null
       });
-      
-      // 应用系统主题
+        // 应用系统主题
       setThemeMode(message.systemIsDark);
       
-      // 更新UI状态
-      updateUI();
+      // 延迟更新UI状态，确保按钮文字正确显示
+      setTimeout(() => {
+        updateUI();
+      }, 30);
       
       sendResponse({ success: true });
     }
@@ -409,45 +466,59 @@ function setupMessageListener() {
         if (changes[key].newValue !== undefined) {
           userSettings[key] = changes[key].newValue;
         }
-      });
-      
-      // 如果主题设置发生变化，更新UI
+      });      // 如果主题设置发生变化，立即更新UI和主题
       if (changes.userOverride || changes.userThemeMode) {
+        console.log('[微博增强 Popup] 主题设置变化，更新UI');
         if (userSettings.userOverride) {
           setThemeMode(userSettings.userThemeMode);
         } else {
           const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
           setThemeMode(systemTheme);
         }
+        
+        // 使用延迟更新确保状态稳定
+        setTimeout(() => {
+          updateUI();
+        }, 30);
+      } else {
+        // 其他设置变化也需要更新UI
+        debouncedUpdateUI();
       }
-      
-      // 更新UI状态
-      updateUI();
     }
   });
 }
 
 // 增强的主题按钮功能，确保与网页原生主题按钮同步
 function enhancedThemeToggle() {
+  console.log('[微博增强 Popup] 主题按钮被点击');
+  
   userSettings.userOverride = true;
   userSettings.userThemeMode = !userSettings.userThemeMode;
+  
+  console.log(`[微博增强 Popup] 切换到: ${userSettings.userThemeMode ? '深色' : '浅色'}模式`);
   
   // 保存设置
   chrome.storage.local.set({ 
     userOverride: true, 
     userThemeMode: userSettings.userThemeMode 
-  });
-  
-  // 更新UI主题
-  setThemeMode(userSettings.userThemeMode);
-  updateUI();
-  
-  // 发送消息到content script，强制同步
-  sendMessageToContentScript({
-    action: 'updateTheme',
-    userOverride: true,
-    userThemeMode: userSettings.userThemeMode,
-    forceSync: true  // 添加强制同步标志
+  }, () => {
+    console.log('[微博增强 Popup] 设置已保存到存储');
+    
+    // 立即更新UI主题
+    setThemeMode(userSettings.userThemeMode);
+    
+    // 延迟更新UI确保状态稳定
+    setTimeout(() => {
+      updateUI();
+    }, 50);
+    
+    // 发送消息到content script，强制同步
+    sendMessageToContentScript({
+      action: 'updateTheme',
+      userOverride: true,
+      userThemeMode: userSettings.userThemeMode,
+      forceSync: true  // 添加强制同步标志
+    });
   });
 }
 
@@ -468,13 +539,13 @@ async function enhancedThemeReset() {
     
     // 获取系统主题偏好
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    console.log(`[微博增强] 系统当前主题: ${prefersDark ? '深色' : '浅色'}`);
-    
-    // 设置主题模式
+    console.log(`[微博增强] 系统当前主题: ${prefersDark ? '深色' : '浅色'}`);    // 设置主题模式
     setThemeMode(prefersDark);
     
-    // 更新UI
-    updateUI();
+    // 延迟更新UI，确保按钮文字正确显示
+    setTimeout(() => {
+      updateUI();
+    }, 50);
     
     // 发送消息到content script，包含强制同步标志
     sendMessageToContentScript({
@@ -490,4 +561,14 @@ async function enhancedThemeReset() {
   } catch (error) {
     console.error('[微博增强] 主题重置过程中出错:', error);
   }
+}
+
+// 请求主题状态同步
+function requestThemeSync() {
+    chrome.runtime.sendMessage({ type: 'requestThemeSync' }, (response) => {
+        if (response && response.themeMode) {
+            setThemeMode(response.themeMode);
+            updateUI();
+        }
+    });
 }

@@ -109,14 +109,24 @@ function setupThemeSync() {
     const isDark = event.detail.isDark;
     console.log(`[微博增强] 收到全局主题变化事件: ${isDark ? '深色' : '浅色'}`);
     
-    // 通知popup界面主题变化
+    // 通知popup界面主题变化，包含完整的状态信息
     try {
       chrome.runtime.sendMessage({
         action: 'themeChanged',
-        isDark: isDark
+        isDark: isDark,
+        userOverride: userOverride || false,
+        userThemeMode: userThemeMode
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          // popup可能未打开，这是正常的
+          console.log('[微博增强] popup未打开，无法发送主题变化消息');
+        } else {
+          console.log('[微博增强] 主题变化消息已发送到popup');
+        }
       });
     } catch (e) {
       // 消息发送失败是正常的，popup可能未打开
+      console.log('[微博增强] 发送主题变化消息失败:', e);
     }
   });
   
@@ -148,7 +158,33 @@ registerMenus();
 
 // 处理来自弹出窗口的设置更新消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  switch(message.action) {    case 'updateTheme':
+  switch(message.action) {
+    case 'requestThemeSync':
+      // 弹出页请求主题状态同步
+      console.log('[微博增强] 收到主题同步请求');
+      try {
+        const currentTheme = getCurrentWebsiteMode();
+        sendResponse({
+          success: true,
+          userOverride: userOverride || false,
+          userThemeMode: userThemeMode,
+          currentTheme: currentTheme
+        });
+        console.log('[微博增强] 主题同步响应已发送:', {
+          userOverride: userOverride || false,
+          userThemeMode: userThemeMode,
+          currentTheme: currentTheme
+        });
+      } catch (error) {
+        console.error('[微博增强] 主题同步失败:', error);
+        sendResponse({
+          success: false,
+          error: error.message
+        });
+      }
+      return true;
+      
+    case 'updateTheme':
       console.log('[微博增强] 收到主题更新消息:', message);
       
       // 处理主题重置

@@ -564,16 +564,24 @@ function notifyAllModulesThemeChange(isDark) {
   if (typeof updateNotificationTheme === 'function') {
     updateNotificationTheme(isDark);
   }
-    // 更新popup界面的主题（如果存在）
+  // 更新popup界面的主题（如果存在）
   try {
     chrome.runtime.sendMessage({
       action: 'themeChanged',
       isDark: isDark,
       userOverride: userOverride,
-      userThemeMode: isDark
+      userThemeMode: userOverride ? isDark : userThemeMode
+    }, (response) => {
+      if (chrome.runtime.lastError) {
+        // popup可能未打开，这是正常的
+        console.log('[微博主题] popup未打开，无法发送主题变化消息');
+      } else {
+        console.log('[微博主题] 主题变化消息已发送到popup');
+      }
     });
   } catch (e) {
     // 在content script中发送消息到popup可能失败，这是正常的
+    console.log('[微博主题] 发送主题变化消息失败:', e);
   }
     // 触发全局主题变化事件
   window.dispatchEvent(new CustomEvent('weiboThemeChanged', {

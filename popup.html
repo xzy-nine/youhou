@@ -67,11 +67,23 @@
     button:hover {
       background: var(--button-hover-bg, #f5f5f5);
       border-color: var(--button-hover-border, #bbb);
-    }
-      button.active {
+    }      button.active {
       background: var(--button-active-bg, #1890ff);
-      color: white;
+      color: white !important;
       border-color: var(--button-active-bg, #1890ff);
+    }
+    
+    /* 确保按钮文字在不同主题下正确显示 */
+    button:not(.active) {
+      color: var(--button-text, #333);
+    }
+    
+    html.dark button:not(.active) {
+      color: var(--button-text, #ffffff);
+    }
+    
+    html.light button:not(.active) {
+      color: var(--button-text, #333333);
     }
     
     #clear-cache-btn:hover:not(:disabled) {
@@ -154,8 +166,7 @@
       background: var(--button-active-bg, #1890ff);
       cursor: pointer;
     }
-    
-    /* 深色模式样式 */
+      /* 深色模式样式 */
     html.dark {
       --panel-bg: #2f3349;
       --panel-border: #484b6a;
@@ -168,6 +179,15 @@
       --button-hover-border: #5a5f83;
       --button-active-bg: #1890ff;
       --checkbox-hover-bg: #404466;
+    }
+    
+    /* 深色模式下强制确保按钮文字可见 */
+    html.dark button {
+      color: #ffffff !important;
+    }
+    
+    html.dark button.active {
+      color: white !important;
     }
     
     /* 浅色模式样式 */
@@ -183,6 +203,14 @@
       --button-hover-border: #bbbbbb;
       --button-active-bg: #1890ff;
       --checkbox-hover-bg: #f5f5f5;
+    }
+    
+    /* 浅色模式下强制确保按钮文字可见 */
+    html.light button {
+      color: #333333 !important;
+    }
+      html.light button.active {
+      color: white !important;
     }
     
     .status-indicator {
