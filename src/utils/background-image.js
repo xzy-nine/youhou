@@ -1440,10 +1440,10 @@ window.ensureModalVisibility = ensureModalVisibility;
 window.setupModalVisibilityObserver = setupModalVisibilityObserver;
 
 // 在应用背景时也自动检查弹窗
-const originalApplyContentTransparency = applyContentTransparency;
-if (typeof originalApplyContentTransparency === 'function') {
-    window.applyContentTransparency = function(...args) {
-        const result = originalApplyContentTransparency.apply(this, args);
+const originalAddContentTransparencyStyles = addContentTransparencyStyles;
+if (typeof originalAddContentTransparencyStyles === 'function') {
+    window.addContentTransparencyStyles = function(...args) {
+        const result = originalAddContentTransparencyStyles.apply(this, args);
         // 延迟一点确保弹窗正常显示
         setTimeout(() => {
             ensureModalVisibility();
