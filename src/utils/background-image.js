@@ -590,7 +590,7 @@ function cleanupUnintendedTransparency() {
         
         if (hasBlur) {
             // 检查是否是预期的元素（微博文章）
-            const isArticle = element.tagName === 'ARTICLE';            const isInArticleContainer = element.closest('article');
+//             const isArticle = element.tagName === 'ARTICLE';            const isInArticleContainer = element.closest('article');
             const hasCorrectId = element.id === 'weibo-blur-background';
             
             // 如果不是预期的元素，清理其样式
@@ -1288,40 +1288,38 @@ window.addEventListener('weiboThemeChanged', (event) => {
   updateBackgroundTheme(event.detail.isDark);
 });
 
-// 添加测试内容透明度主题联动的函数
-window.testContentTransparencyTheme = function() {
-  console.log('%c[微博背景] 开始测试内容透明度主题联动...', 'color: #17a2b8; font-weight: bold;');
-  
-  if (!backgroundStore.content_transparency) {
-    console.log('%c[微博背景] 内容透明度功能未启用', 'color: #ffc107;');
-    simpleNotify('请先启用内容透明度功能再测试');
-    return;
-  }
-  
-  const currentTheme = document.body.classList.contains('woo-theme-dark') ? '深色' : '浅色';
-  console.log(`%c[微博背景] 当前主题: ${currentTheme}`, 'color: #17a2b8;');
-  
-  // 强制更新内容透明度
-  updateContentTransparency();
-  
-  // 检查样式是否正确应用
-  const transparencyStyle = document.getElementById('weibo-background-transparency-style');
-  if (transparencyStyle) {
-    const isDark = document.body.classList.contains('woo-theme-dark');
-    const expectedColor = isDark ? 'rgba(0, 0, 0,' : 'rgba(255, 255, 255,';
-    const hasCorrectTheme = transparencyStyle.textContent.includes(expectedColor);
-    
-    if (hasCorrectTheme) {
-      simpleNotify(`✅ 内容透明度主题联动正常！当前为${currentTheme}模式`);
-      console.log('%c[微博背景] 内容透明度主题联动测试通过', 'color: #28a745; font-weight: bold;');
-    } else {
-      simpleNotify(`❌ 内容透明度主题联动异常！主题检测可能有问题`);
-      console.log('%c[微博背景] 内容透明度主题联动测试失败', 'color: #dc3545; font-weight: bold;');
-      console.log('期望的颜色前缀:', expectedColor);
-      console.log('实际的样式内容:', transparencyStyle.textContent.substring(0, 200));
+// 增强主题检测 - 也监听DOM变化来检测主题切换
+const backgroundThemeObserver = new MutationObserver((mutations) => {
+  mutations.forEach((mutation) => {
+    if (mutation.type === 'attributes' && 
+        (mutation.attributeName === 'class' || mutation.attributeName === 'data-theme')) {
+      const target = mutation.target;
+      
+      if (target === document.body || target === document.documentElement) {
+        // 检测主题变化
+        const isDark = document.body.classList.contains('woo-theme-dark') ||
+                       document.documentElement.getAttribute('data-theme') === 'dark';
+        
+        console.log(`[微博背景] DOM变化检测到主题: ${isDark ? '深色' : '浅色'}`);
+        updateBackgroundTheme(isDark);
+      }
     }
-  } else {
-    simpleNotify(`❌ 内容透明度样式未找到！`);
-    console.log('%c[微博背景] 未找到内容透明度样式元素', 'color: #dc3545; font-weight: bold;');
-  }
-};
+  });
+});
+
+// 开始观察主题相关的DOM变化
+if (document.body) {
+  backgroundThemeObserver.observe(document.body, {
+    attributes: true,
+    attributeFilter: ['class', 'data-theme']
+  });
+}
+
+if (document.documentElement) {
+  backgroundThemeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class', 'data-theme']
+  });
+}
+
+console.log('[微博背景] 主题变化监听已启动');

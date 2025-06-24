@@ -14,6 +14,9 @@ function setupCommentSystem() {
   
   // 添加调试快捷键
   setupDebugShortcuts();
+  
+  // 设置主题变化监听
+  setupCommentThemeListener();
 }
 
 // 添加评论悬浮窗样式
@@ -325,6 +328,45 @@ function interceptCommentLinks() {
       }
     }
   }, true);
+}
+
+// 设置评论模块的主题监听
+function setupCommentThemeListener() {
+  // 监听全局主题变化事件
+  window.addEventListener('weiboThemeChanged', (event) => {
+    const isDark = event.detail.isDark;
+    console.log(`[微博评论] 收到主题变化事件: ${isDark ? '深色' : '浅色'}`);
+    
+    // 更新所有已打开的评论模态框主题
+    updateAllCommentModalsTheme(isDark);
+  });
+  
+  console.log('[微博评论] 主题变化监听已设置');
+}
+
+// 更新所有评论模态框的主题
+function updateAllCommentModalsTheme(isDark) {
+  const commentModals = document.querySelectorAll('.comment-modal');
+  commentModals.forEach(modal => {
+    modal.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    
+    console.log(`[微博评论] 更新评论模态框主题为: ${isDark ? '深色' : '浅色'}`);
+    
+    // 尝试更新iframe内容的主题
+    const iframe = modal.querySelector('.comment-modal-iframe');
+    if (iframe) {
+      try {
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+        if (iframeDoc && iframeDoc.body) {
+          iframeDoc.body.classList.remove('woo-theme-dark', 'woo-theme-light');
+          iframeDoc.body.classList.add(isDark ? 'woo-theme-dark' : 'woo-theme-light');
+          console.log(`[微博评论] 已更新iframe主题`);
+        }
+      } catch (error) {
+        console.log('[微博评论] 无法更新iframe主题（可能是跨域）:', error);
+      }
+    }
+  });
 }
 
 // 调试函数：分析页面中的评论相关元素

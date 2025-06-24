@@ -109,9 +109,9 @@ async function initialize() {
           availableFunctions.push('weiboSetBackgroundType("bing")');
           availableFunctions.push('weiboSetBackgroundType("gradient")');
           availableFunctions.push('weiboSetBackgroundType("custom")');
-        }        if (typeof window.testThemeSync === 'function') availableFunctions.push('testThemeSync()');
-        if (typeof window.toggleTheme === 'function') availableFunctions.push('toggleTheme()');
+        }        if (typeof window.testThemeSync === 'function') availableFunctions.push('testThemeSync()');        if (typeof window.toggleTheme === 'function') availableFunctions.push('toggleTheme()');
         if (typeof window.testContentTransparencyTheme === 'function') availableFunctions.push('testContentTransparencyTheme()');
+        if (typeof window.debugNativeThemeSwitch === 'function') availableFunctions.push('debugNativeThemeSwitch()');
         
         console.log('%c[微博增强] 可用的调试命令:', 'color: #17a2b8; font-weight: bold;');
         availableFunctions.forEach(func => {

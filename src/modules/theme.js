@@ -9,12 +9,20 @@ let hasShownInitialNotification = false;
 let isScriptOperation = false;
 let observer = null;
 
+// 增强的主题检测变量
+let themeCheckInterval = null;
+let lastKnownTheme = null;
+
 // 设置主题系统
-function setupThemeSystem() {// 检查系统颜色模式
+function setupThemeSystem() {
+  // 检查系统颜色模式
   const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
   
   // 保存最后一次系统模式
   chromeStorage.setValue('lastSystemMode', prefersDarkMode);
+  
+  // 初始化lastKnownTheme为当前主题
+  lastKnownTheme = getCurrentWebsiteMode();
   
   // 延迟主题初始化，确保页面完全加载
   setTimeout(() => {
@@ -32,6 +40,7 @@ function setupThemeSystem() {// 检查系统颜色模式
         setWebsiteMode(systemDarkMode, false);
       }
       lastNotifiedMode = systemDarkMode;
+      lastKnownTheme = systemDarkMode;
     } else {
       // 如果用户手动设置了主题，尊重用户设置
       // 读取上次保存的用户偏好，如果没有则使用当前网站模式
@@ -41,6 +50,7 @@ function setupThemeSystem() {// 检查系统颜色模式
       // 确保当前主题与用户设置一致
       setWebsiteMode(savedMode, false);
       lastNotifiedMode = savedMode;
+      lastKnownTheme = savedMode;
     }
     
     lastNotifiedOverrideState = userOverride;
@@ -66,15 +76,23 @@ function setupThemeSystem() {// 检查系统颜色模式
         }
       }
     });
-  });
-  
-  // 监听localStorage变化以检测用户手动切换模式
+  });  // 监听localStorage变化以检测用户手动切换模式
   monitorLocalStorage();
+  
+  // 监听DOM变化以检测主题切换（更直接的方法）
+  observer = monitorDOMChanges();
+  
+  // 启动定时检测作为备用方案（增强版）
+  startThemePolling();
+  
+  // 监听主题按钮点击（增强版）
+  monitorThemeButtonClicks();
 }
 
 // 获取当前网站的模式
 function getCurrentWebsiteMode() {
   try {
+    // 方法1: 检查localStorage中的darkModeHistory
     const darkModeHistory = localStorage.getItem('darkModeHistory');
     if (darkModeHistory) {
       const parsed = JSON.parse(darkModeHistory);
@@ -86,10 +104,34 @@ function getCurrentWebsiteMode() {
     // 静默处理错误
   }
 
+  // 方法2: 检查body的类名（最可靠的方法）
   if (document.body) {
-    return document.body.classList.contains("woo-theme-dark");
+    if (document.body.classList.contains("woo-theme-dark")) {
+      return true;
+    }
+    if (document.body.classList.contains("woo-theme-light")) {
+      return false;
+    }
+  }
+  
+  // 方法3: 检查documentElement的data-theme属性
+  if (document.documentElement) {
+    const themeAttr = document.documentElement.getAttribute('data-theme');
+    if (themeAttr === 'dark') return true;
+    if (themeAttr === 'light') return false;
+  }
+  
+  // 方法4: 检查documentElement的类名
+  if (document.documentElement) {
+    if (document.documentElement.classList.contains("woo-theme-dark")) {
+      return true;
+    }
+    if (document.documentElement.classList.contains("woo-theme-light")) {
+      return false;
+    }
   }
 
+  // 默认返回false（浅色模式）
   return false;
 }
 
@@ -250,28 +292,12 @@ function monitorLocalStorage() {
         } else if (key === 'weiboThemeMode') {
           newMode = value === 'dark';
         }
-        
+          
         // 检查当前实际主题模式与检测到的变化是否不同
         const currentWebsiteMode = getCurrentWebsiteMode();
         if (currentWebsiteMode !== newMode) {
-          console.log(`[微博主题] 检测到用户手动切换为${newMode ? '深色' : '浅色'}模式`);
-          
-          // 记录用户手动覆盖状态
-          userOverride = true;
-          saveThemeConfig(true, newMode);
-            // 更新评论悬浮窗的主题
-          updateCommentModalsTheme(newMode);
-          
-          // 通知所有模块主题已改变
-          notifyAllModulesThemeChange(newMode);
-            
-          // 只有当状态变化，或者是第一次通知时才显示
-          if (lastNotifiedOverrideState !== true || lastNotifiedMode !== newMode || !hasShownInitialNotification) {
-            simpleNotify(`已手动切换为${newMode ? '深色' : '浅色'}模式`);
-            lastNotifiedMode = newMode;
-            lastNotifiedOverrideState = true;
-            hasShownInitialNotification = true;
-          }
+          console.log(`[微博主题] localStorage检测到用户手动切换为${newMode ? '深色' : '浅色'}模式`);
+          handleNativeThemeChange(newMode);
         }
       } catch (e) {
         console.error(`[微博主题] 解析${key}时出错:`, e);
@@ -299,14 +325,11 @@ function monitorLocalStorage() {
             const newDarkMode = parsed[0][1] === 1;
             
             console.log(`[微博主题] 检测到用户通过微博界面切换主题: ${newDarkMode ? '深色' : '浅色'}`);
-            
-            // 记录用户手动覆盖和当前主题状态
+              // 记录用户手动覆盖和当前主题状态
             userOverride = true;
             saveThemeConfig(true, newDarkMode);
-              // 更新评论悬浮窗的主题
-            updateCommentModalsTheme(newDarkMode);
             
-            // 通知所有模块主题已改变
+            // 直接通知所有模块主题已改变，不再调用setWebsiteMode
             notifyAllModulesThemeChange(newDarkMode);
             
             // 只有当状态变化时才通知
@@ -324,8 +347,116 @@ function monitorLocalStorage() {
   });
 }
 
+// 监听DOM变化以检测主题切换
+function monitorDOMChanges() {
+  // 创建一个MutationObserver来监听DOM变化
+  const observer = new MutationObserver((mutations) => {
+    let themeChanged = false;
+    let newThemeMode = null;
+    
+    mutations.forEach((mutation) => {
+      // 监听body或documentElement的class变化
+      if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+        const target = mutation.target;
+        
+        if (target === document.body || target === document.documentElement) {
+          const currentMode = getCurrentWebsiteMode();
+          
+          // 检查是否真的发生了主题变化
+          if (currentMode !== lastKnownTheme && !isScriptOperation) {
+            themeChanged = true;
+            newThemeMode = currentMode;
+          }
+        }
+      }
+      
+      // 监听data-theme属性变化
+      if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
+        const target = mutation.target;
+        
+        if (target === document.documentElement) {
+          const currentMode = target.getAttribute('data-theme') === 'dark';
+          
+          if (currentMode !== lastKnownTheme && !isScriptOperation) {
+            themeChanged = true;
+            newThemeMode = currentMode;
+          }
+        }
+      }
+    });
+      
+    // 如果检测到主题变化，处理它
+    if (themeChanged && newThemeMode !== null) {
+      console.log(`[微博主题] DOM监听检测到主题变化为${newThemeMode ? '深色' : '浅色'}模式`);
+      handleNativeThemeChange(newThemeMode);
+    }
+  });
+  
+  // 开始观察body和documentElement的属性变化
+  if (document.body) {
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class', 'data-theme']
+    });
+  }
+  
+  if (document.documentElement) {
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class', 'data-theme']
+    });
+  }
+  
+  console.log('[微博主题] DOM变化监听已启动');
+  
+  return observer;
+}
+
+// 定时检测主题变化（增强版，更快响应原生主题切换）
+function startThemePolling() {
+  // 100ms间隔检测，确保快速响应用户的原生主题切换
+  themeCheckInterval = setInterval(() => {
+    if (isScriptOperation) return;
+    
+    const currentMode = getCurrentWebsiteMode();
+    if (currentMode !== lastKnownTheme) {
+      console.log(`[微博主题] 定时检测发现主题变化: ${lastKnownTheme ? '深色' : '浅色'} → ${currentMode ? '深色' : '浅色'}`);
+      handleNativeThemeChange(currentMode);
+    }
+  }, 100); // 更快的检测间隔
+  
+  console.log('[微博主题] 增强定时主题检测已启动 (100ms间隔)');
+}
+
+// 统一处理原生主题变化的函数
+function handleNativeThemeChange(newTheme) {
+  if (newTheme === lastKnownTheme) return;
+  
+  console.log(`[微博主题] 处理原生主题变化: ${lastKnownTheme ? '深色' : '浅色'} → ${newTheme ? '深色' : '浅色'}`);
+  
+  // 更新状态
+  lastKnownTheme = newTheme;
+  
+  // 记录用户手动覆盖状态
+  userOverride = true;
+  saveThemeConfig(true, newTheme);
+  
+  // 通知所有模块主题已改变
+  notifyAllModulesThemeChange(newTheme);
+  
+  // 显示通知（避免重复通知）
+  if (lastNotifiedMode !== newTheme) {
+    simpleNotify(`已切换为${newTheme ? '深色' : '浅色'}模式`);
+    lastNotifiedMode = newTheme;
+    lastNotifiedOverrideState = true;
+  }
+}
+
 // 通知所有模块主题已改变
 function notifyAllModulesThemeChange(isDark) {
+  // 更新评论悬浮窗的主题
+  updateCommentModalsTheme(isDark);
+  
   // 更新背景图片模块的主题感知
   if (typeof updateBackgroundTheme === 'function') {
     updateBackgroundTheme(isDark);
@@ -353,6 +484,131 @@ function notifyAllModulesThemeChange(isDark) {
   
   console.log(`[微博主题] 已通知所有模块主题变更为: ${isDark ? '深色' : '浅色'}`);
 }
+
+// 监听可能的主题切换按钮点击（增强版）
+function monitorThemeButtonClicks() {
+  // 监听文档上的所有点击事件
+  document.addEventListener('click', (event) => {
+    const target = event.target;
+    
+    // 检查是否点击了主题相关的按钮或元素
+    const isThemeButton = target.closest('[data-theme]') ||
+                          target.closest('[class*="theme"]') ||
+                          target.closest('[class*="dark"]') ||
+                          target.closest('[class*="light"]') ||
+                          target.closest('[title*="主题"]') ||
+                          target.closest('[title*="深色"]') ||
+                          target.closest('[title*="浅色"]') ||
+                          target.closest('[title*="夜间"]') ||
+                          target.closest('[title*="日间"]') ||
+                          target.textContent?.includes('主题') ||
+                          target.textContent?.includes('深色') ||
+                          target.textContent?.includes('浅色');
+    
+    if (isThemeButton) {
+      console.log('[微博主题] 检测到可能的主题切换按钮点击:', target);
+      
+      // 多个时间点检测主题变化，确保不遗漏
+      [50, 100, 200, 500].forEach(delay => {
+        setTimeout(() => {
+          const currentMode = getCurrentWebsiteMode();
+          if (currentMode !== lastKnownTheme && !isScriptOperation) {
+            console.log(`[微博主题] 按钮点击后${delay}ms检测到主题变化`);
+            handleNativeThemeChange(currentMode);
+          }
+        }, delay);
+      });
+    }
+  }, true); // 使用捕获阶段确保能捕获到事件
+  
+  console.log('[微博主题] 增强主题按钮点击监听已启动');
+}
+
+// 清理所有监听器的函数
+function cleanupThemeListeners() {
+  if (observer) {
+    observer.disconnect();
+    observer = null;
+  }
+  
+  if (themeCheckInterval) {
+    clearInterval(themeCheckInterval);
+    themeCheckInterval = null;
+  }
+  
+  console.log('[微博主题] 所有主题监听器已清理');
+}
+
+// 重新初始化主题系统的函数
+window.reinitializeThemeSystem = function() {
+  console.log('[微博主题] 重新初始化主题系统...');
+  
+  // 清理现有监听器
+  cleanupThemeListeners();
+  
+  // 重新设置
+  setupThemeSystem();
+  
+  simpleNotify('主题系统已重新初始化');
+};
+
+// 页面卸载时清理
+window.addEventListener('beforeunload', cleanupThemeListeners);
+
+// 测试原生主题切换同步的调试函数
+window.testNativeThemeSync = function() {
+  console.log('%c[微博主题] 🧪 开始测试原生主题切换同步...', 'color: #17a2b8; font-weight: bold;');
+  
+  const currentTheme = getCurrentWebsiteMode();
+  console.log(`%c[微博主题] 当前主题状态: ${currentTheme ? '深色' : '浅色'}`, 'color: #17a2b8;');
+  console.log(`%c[微博主题] lastKnownTheme: ${lastKnownTheme ? '深色' : '浅色'}`, 'color: #17a2b8;');
+  
+  // 显示监听器状态
+  console.log(`%c[微博主题] 监听器状态:`, 'color: #17a2b8;');
+  console.log('  - DOM监听器:', observer ? '✅ 已启动' : '❌ 未启动');
+  console.log('  - 定时检测:', themeCheckInterval ? '✅ 已启动' : '❌ 未启动');
+  console.log('  - localStorage拦截:', localStorage.setItem.toString().includes('微博主题') ? '✅ 已启动' : '❌ 未启动');
+  
+  // 启动增强日志记录
+  let logCount = 0;
+  const originalLog = console.log;
+  const enhancedLog = (...args) => {
+    if (args[0] && args[0].includes('[微博主题]')) {
+      logCount++;
+      originalLog(`%c[测试日志 #${logCount}]`, 'color: #007bff;', ...args);
+    } else {
+      originalLog(...args);
+    }
+  };
+  
+  console.log = enhancedLog;
+  
+  console.log(`%c[微博主题] 📋 请在微博页面上点击主题切换按钮，观察是否有日志输出`, 'color: #ffc107;');
+  simpleNotify('🧪 主题同步测试已启动，请测试原生主题切换');
+  
+  // 15秒后结束测试
+  setTimeout(() => {
+    console.log = originalLog;
+    console.log(`%c[微博主题] ✅ 测试结束，共记录 ${logCount} 条主题相关日志`, 'color: #28a745; font-weight: bold;');
+    
+    if (logCount === 0) {
+      simpleNotify('⚠️ 未检测到主题变化，请检查主题按钮位置');
+    } else {
+      simpleNotify(`🎉 主题同步测试完成，检测到 ${logCount} 次事件`);
+    }
+  }, 15000);
+};
+
+// 手动触发主题变化（用于测试）
+window.triggerManualThemeChange = function(isDark) {
+  console.log(`%c[微博主题] 🔧 手动触发主题变化测试: ${isDark ? '深色' : '浅色'}`, 'color: #dc3545; font-weight: bold;');
+  
+  const previousMode = lastKnownTheme;
+  handleNativeThemeChange(isDark);
+  
+  console.log(`%c[微博主题] 主题变化触发完成: ${previousMode ? '深色' : '浅色'} → ${isDark ? '深色' : '浅色'}`, 'color: #dc3545;');
+  simpleNotify(`手动触发主题变化: ${isDark ? '深色' : '浅色'}模式`);
+};
 
 
 
