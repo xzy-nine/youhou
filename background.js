@@ -128,8 +128,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     return true;
   }
-  
-  // 清理缓存 (开发调试用)
+    // 清理缓存 (开发调试用)
   if (message.action === 'clearCache') {
     clearCacheData().then(success => {
       sendResponse({ success: success });
@@ -139,6 +138,33 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     return true;
   }
+  
+  // 主题变更消息处理
+  if (message.action === 'themeChanged') {
+    console.log('[微博增强] 收到主题变更消息:', message);
+    // 更新存储中的主题设置
+    chrome.storage.local.set({
+      userOverride: message.userOverride,
+      userThemeMode: message.userThemeMode
+    }, () => {
+      console.log('[微博增强] 主题设置已同步到存储');
+    });
+    return true;
+  }
+  
+  // 主题重置消息处理
+  if (message.action === 'themeReset') {
+    console.log('[微博增强] 收到主题重置消息:', message);
+    // 重置存储中的主题设置
+    chrome.storage.local.set({
+      userOverride: false,
+      userThemeMode: null
+    }, () => {
+      console.log('[微博增强] 主题设置已重置并同步到存储');
+    });
+    return true;
+  }
+  
     // 显示通知
   if (message.action === 'showNotification') {
     chrome.notifications.create({
@@ -159,6 +185,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }).catch(error => {
       console.error('[微博增强] 获取必应图片失败:', error);
       sendResponse({ success: false, error: error.message });
+    });
+    return true;
+  }
+  
+  // 主题变更消息处理
+  if (message.action === 'themeChanged') {
+    console.log('[微博增强] 收到主题变更消息:', message);
+    // 更新存储中的主题设置
+    chrome.storage.local.set({
+      userOverride: message.userOverride,
+      userThemeMode: message.userThemeMode
+    }, () => {
+      console.log('[微博增强] 主题设置已同步到存储');
+    });
+    return true;
+  }
+  
+  // 主题重置消息处理
+  if (message.action === 'themeReset') {
+    console.log('[微博增强] 收到主题重置消息:', message);
+    // 重置存储中的主题设置
+    chrome.storage.local.set({
+      userOverride: false,
+      userThemeMode: null
+    }, () => {
+      console.log('[微博增强] 主题设置已重置并同步到存储');
     });
     return true;
   }

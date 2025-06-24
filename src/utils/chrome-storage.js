@@ -157,14 +157,25 @@ function saveBackgroundConfig() {
   chromeStorage.setValue('background_notify_enabled', backgroundStore.notify_enabled);
 }
 
-// 保存主题配置
-function saveThemeConfig(isOverride, currentMode = null) {
-  userOverride = isOverride;
-  chromeStorage.setValue('userOverride', isOverride);
-  
-  // 如果提供了当前模式，保存它
-  if (currentMode !== null) {
-    userThemeMode = currentMode;
-    chromeStorage.setValue('userThemeMode', currentMode);
+// 保存主题配置 - 异步版本
+async function saveThemeConfig(isOverride, currentMode = null) {
+  try {
+    userOverride = isOverride;
+    
+    const promises = [
+      chromeStorage.setValue('userOverride', isOverride)
+    ];
+    
+    // 如果提供了当前模式，保存它
+    if (currentMode !== null) {
+      userThemeMode = currentMode;
+      promises.push(chromeStorage.setValue('userThemeMode', currentMode));
+    }
+    
+    await Promise.all(promises);
+    console.log('[微博增强] 主题配置保存成功:', { userOverride: isOverride, userThemeMode: currentMode });
+  } catch (error) {
+    console.error('[微博增强] 主题配置保存失败:', error);
+    throw error;
   }
 }

@@ -66,14 +66,15 @@ async function initialize() {
     if (typeof setupCommentSystem === 'function') {
       setupCommentSystem();
     }
-    
-    // 应用宽屏功能
+      // 应用宽屏功能
     if (typeof applyWidescreenStyles === 'function') {
       applyWidescreenStyles();
     }
-      // 注意：悬浮控制面板已移除，现在只使用弹出页面的控制面板
-    console.log('[微博增强] 悬浮控制面板已禁用，请使用扩展图标的弹出页面进行控制');
-      // 在页面加载完成后再次应用背景，确保在所有DOM元素加载后背景依然存在
+    
+    // 注意：页面控制面板已移除，现在主要通过popup页面进行控制
+    console.log('[微博增强] 主要控制面板已集成到扩展popup页面，点击扩展图标进行控制');
+    
+    // 在页面加载完成后再次应用背景，确保在所有DOM元素加载后背景依然存在
     window.addEventListener('load', () => {
       // 重新应用背景
       setTimeout(() => {
@@ -148,19 +149,76 @@ registerMenus();
 // 处理来自弹出窗口的设置更新消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch(message.action) {    case 'updateTheme':
+      console.log('[微博增强] 收到主题更新消息:', message);
+      
+      // 处理主题重置
+      if (message.forceReset) {
+        console.log('[微博增强] 执行主题重置');
+        userOverride = false;
+        userThemeMode = null;
+        
+        // 异步保存重置状态
+        Promise.all([
+          chromeStorage.setValue('userOverride', false),
+          chromeStorage.setValue('userThemeMode', null)
+        ]).then(() => {
+          console.log('[微博增强] 主题重置状态已保存');
+          
+          // 应用系统主题
+          if (message.systemTheme !== undefined) {
+            const success = setWebsiteMode(message.systemTheme, false);
+            if (success) {
+              console.log('[微博增强] 系统主题应用成功');
+            } else {
+              console.error('[微博增强] 系统主题应用失败');
+            }
+          }
+        }).catch(error => {
+          console.error('[微博增强] 保存主题重置状态失败:', error);
+        });
+        
+        sendResponse({ success: true });
+        return true;
+      }
+      
+      // 处理普通主题更新
       userOverride = message.userOverride;
       if (message.userThemeMode !== undefined) {
         userThemeMode = message.userThemeMode;
       }
       
-      // 重新设置主题系统
-      setupThemeSystem();
+      // 异步保存配置到存储，确保同步
+      Promise.all([
+        chromeStorage.setValue('userOverride', userOverride),
+        chromeStorage.setValue('userThemeMode', userThemeMode)
+      ]).then(() => {
+        console.log('[微博增强] 主题配置已保存到存储');
+        
+        // 如果是用户手动设置，立即应用主题
+        if (userOverride && message.userThemeMode !== undefined) {
+          const success = setWebsiteMode(message.userThemeMode, true);
+          if (!success) {
+            console.error('[微博增强] 应用主题失败');
+          }
+        }
+        
+        // 如果有强制同步标志，确保原生主题按钮状态也更新
+        if (message.forceSync) {
+          setTimeout(() => {
+            const currentMode = getCurrentWebsiteMode();            if (currentMode !== message.userThemeMode && message.userThemeMode !== undefined) {
+              console.log('[微博增强] 强制同步原生主题按钮状态');
+              setWebsiteMode(message.userThemeMode, false);
+            }
+          }, 100);
+        }
+        
+        sendResponse({ success: true });
+      }).catch(error => {
+        console.error('[微博增强] 主题配置保存失败:', error);
+        sendResponse({ success: false, error: error.message });
+      });
       
-      // 如果是用户手动设置，立即应用主题
-      if (userOverride && message.userThemeMode !== undefined) {
-        setWebsiteMode(message.userThemeMode, true);
-      }
-      break;
+      return true; // 表示异步响应
       
     case 'updateWidescreen':
       // 重新从存储获取设置并应用
