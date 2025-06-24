@@ -91,42 +91,9 @@ async function initialize() {
       // 显示通知
       if (widescreenStore.notify_enabled) {
         simpleNotify('微博增强功能已激活');
-      }
-    });
+      }    });
       // 启动成功日志
     console.log('%c[微博增强] 功能已激活', 'color: #28a745; font-weight: bold;');
-        // 将重新应用背景函数暴露到全局，方便用户手动调用
-    if (typeof applyBackground === 'function') {
-      window.weiboApplyBackground = applyBackground;      // 延迟一点时间后验证所有函数是否正确暴露
-      setTimeout(() => {
-        const availableFunctions = [];
-        if (typeof window.weiboApplyBackground === 'function') availableFunctions.push('weiboApplyBackground()');
-        if (typeof window.diagnoseBackgroundStatus === 'function') availableFunctions.push('diagnoseBackgroundStatus()');
-        if (typeof window.reapplyBackground === 'function') availableFunctions.push('reapplyBackground()');
-        if (typeof window.forceApplyBackground === 'function') availableFunctions.push('forceApplyBackground()');
-        if (typeof window.cleanupUnintendedTransparency === 'function') availableFunctions.push('cleanupUnintendedTransparency()');        if (typeof window.weiboRefreshBingBackground === 'function') availableFunctions.push('weiboRefreshBingBackground()');
-        if (typeof window.weiboSetBackgroundType === 'function') {
-          availableFunctions.push('weiboSetBackgroundType("bing")');
-          availableFunctions.push('weiboSetBackgroundType("gradient")');
-          availableFunctions.push('weiboSetBackgroundType("custom")');
-        }        if (typeof window.testThemeSync === 'function') availableFunctions.push('testThemeSync()');        if (typeof window.toggleTheme === 'function') availableFunctions.push('toggleTheme()');
-        if (typeof window.testContentTransparencyTheme === 'function') availableFunctions.push('testContentTransparencyTheme()');
-        if (typeof window.debugNativeThemeSwitch === 'function') availableFunctions.push('debugNativeThemeSwitch()');
-        
-        console.log('%c[微博增强] 可用的调试命令:', 'color: #17a2b8; font-weight: bold;');
-        availableFunctions.forEach(func => {
-          console.log(`%c  - ${func}`, 'color: #17a2b8;');
-        });
-        
-        if (availableFunctions.length === 0) {
-          console.warn('%c[微博增强] 警告：调试函数未正确暴露，请刷新页面重试', 'color: #ffc107;');
-        } else {
-          console.log('%c[微博增强] 背景图片获取正常，如有问题请先尝试 forceApplyBackground()', 'color: #28a745;');
-          console.log('%c[微博增强] 如发现多余元素被半透明化，请运行 cleanupUnintendedTransparency()', 'color: #ff6b35;');
-          console.log('%c[微博增强] 更多设置请使用扩展图标的弹出页面', 'color: #6c757d; font-style: italic;');
-        }
-      }, 500);
-    }
     
   } catch (error) {
     console.error('[微博增强] 初始化失败:', error);
@@ -269,54 +236,9 @@ if (!window.reapplyBackground) {
   window.reapplyBackground = async function() {
     console.log('[微博增强] 临时重新应用背景函数...');
     if (typeof applyBackground === 'function') {
-      await applyBackground();
-      console.log('[微博增强] 背景重新应用完成');
+      await applyBackground();      console.log('[微博增强] 背景重新应用完成');
     } else {
       console.error('[微博增强] applyBackground函数不可用，请刷新页面');
     }
   };
 }
-
-// 添加调试函数到全局，方便用户测试主题联动
-window.testThemeSync = function() {
-  console.log('%c[微博增强] 开始测试主题联动...', 'color: #17a2b8; font-weight: bold;');
-  
-  const currentMode = getCurrentWebsiteMode();
-  const newMode = !currentMode;
-  
-  console.log(`%c[微博增强] 当前模式: ${currentMode ? '深色' : '浅色'}`, 'color: #17a2b8;');
-  console.log(`%c[微博增强] 切换至: ${newMode ? '深色' : '浅色'}`, 'color: #17a2b8;');
-  
-  // 强制切换主题
-  setWebsiteMode(newMode, true);
-  
-  // 显示测试结果
-  setTimeout(() => {
-    const verifyMode = getCurrentWebsiteMode();
-    if (verifyMode === newMode) {
-      simpleNotify(`✅ 主题联动测试成功！已切换至${newMode ? '深色' : '浅色'}模式`);
-      console.log('%c[微博增强] 主题联动测试通过', 'color: #28a745; font-weight: bold;');
-    } else {
-      simpleNotify(`❌ 主题联动测试失败！切换未生效`);
-      console.log('%c[微博增强] 主题联动测试失败', 'color: #dc3545; font-weight: bold;');
-    }
-  }, 500);
-};
-
-// 添加快速切换主题的函数
-window.toggleTheme = function() {
-  const currentMode = getCurrentWebsiteMode();
-  const newMode = !currentMode;
-  
-  console.log(`%c[微博增强] 手动切换主题: ${currentMode ? '深色' : '浅色'} → ${newMode ? '深色' : '浅色'}`, 'color: #17a2b8;');
-  
-  // 标记为用户手动操作
-  userOverride = true;
-  userThemeMode = newMode;
-  saveThemeConfig(true, newMode);
-  
-  // 应用主题
-  setWebsiteMode(newMode, true);
-  
-  simpleNotify(`已切换至${newMode ? '深色' : '浅色'}模式`);
-};

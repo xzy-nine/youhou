@@ -1014,48 +1014,6 @@ async function testBingAPI() {
     }
 }
 
-// 安全地暴露函数到全局，确保在适当的时机执行
-function exposeFunctionsToGlobal() {    // 暴露诊断函数和重新应用函数到全局，方便调试
-    window.diagnoseBackgroundStatus = diagnoseBackgroundStatus;
-    window.reapplyBackground = reapplyBackground;
-    window.forceApplyBackground = forceApplyBackground;
-    window.testBingAPI = testBingAPI;
-    window.cleanupUnintendedTransparency = cleanupUnintendedTransparency;
-    window.reinforceBackgroundDisplay = reinforceBackgroundDisplay; // 新增强化保护函数
-
-    // 暴露背景相关函数到全局，方便调试和控制台调用
-    window.weiboApplyBackground = applyBackground;
-    window.weiboToggleBackground = toggleBackgroundEnabled;
-    window.weiboSetBackgroundType = setBackgroundType;
-    window.weiboClearBingCache = clearBingImageCache;
-    window.weiboRefreshBingBackground = refreshBingBackground;
-
-    // 验证函数是否正确暴露
-    console.log('[微博背景] 全局函数暴露完成:', {
-        diagnoseBackgroundStatus: typeof window.diagnoseBackgroundStatus,
-        reapplyBackground: typeof window.reapplyBackground,
-        forceApplyBackground: typeof window.forceApplyBackground,
-        testBingAPI: typeof window.testBingAPI,
-        cleanupUnintendedTransparency: typeof window.cleanupUnintendedTransparency,
-        weiboApplyBackground: typeof window.weiboApplyBackground,
-        weiboToggleBackground: typeof window.weiboToggleBackground,
-        weiboSetBackgroundType: typeof window.weiboSetBackgroundType,
-        weiboClearBingCache: typeof window.weiboClearBingCache,
-        weiboRefreshBingBackground: typeof window.weiboRefreshBingBackground
-    });
-}
-
-// 立即执行暴露函数
-exposeFunctionsToGlobal();
-
-// 确保在DOM完全加载后再次暴露（防止被覆盖）
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', exposeFunctionsToGlobal);
-} else {
-    // DOM已经加载完成，立即执行
-    setTimeout(exposeFunctionsToGlobal, 100);
-}
-
 // 页面加载完成后自动初始化背景功能
 function initializeBackground() {
     // 等待存储初始化完成
@@ -1435,14 +1393,10 @@ function setupModalVisibilityObserver() {
     return observer;
 }
 
-// 暴露函数到全局，方便调试
-window.ensureModalVisibility = ensureModalVisibility;
-window.setupModalVisibilityObserver = setupModalVisibilityObserver;
-
 // 在应用背景时也自动检查弹窗
 const originalAddContentTransparencyStyles = addContentTransparencyStyles;
 if (typeof originalAddContentTransparencyStyles === 'function') {
-    window.addContentTransparencyStyles = function(...args) {
+    addContentTransparencyStyles = function(...args) {
         const result = originalAddContentTransparencyStyles.apply(this, args);
         // 延迟一点确保弹窗正常显示
         setTimeout(() => {

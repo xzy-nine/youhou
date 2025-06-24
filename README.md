@@ -50,8 +50,7 @@ reinitializeThemeSystem()
 ## 目录结构
 
 ```
-weibo-up/
-├── dist/                  # 构建输出目录
+weibo-pro/
 ├── src/                   # 源代码目录
 │   ├── modules/          # 功能模块
 │   │   ├── comments.js   # 评论功能模块
@@ -60,43 +59,22 @@ weibo-up/
 │   │   └── widescreen.js # 宽屏功能模块
 │   ├── styles/           # 样式文件
 │   │   ├── comments.js   # 评论系统样式
+│   │   ├── controlPanel.js # 控制面板样式
 │   │   └── widescreen.js # 宽屏模式样式
-│   ├── utils/            # 工具函数
-│   │   └── storage.js    # 存储相关功能
-│   └── index.js          # 主入口文件
-├── package.json          # 项目配置
-├── webpack.config.js     # Webpack配置
-└── README.md             # 项目说明
+│   └── utils/            # 工具函数
+│       ├── background-image.js # 背景图片处理
+│       ├── chrome-storage.js   # Chrome存储API封装
+│       └── notification.js     # 通知系统
+├── icons/                # 扩展图标
+├── background.js         # 后台脚本
+├── content.js           # 内容脚本
+├── popup.html           # 弹出页面
+├── popup.js             # 弹出页面脚本
+├── manifest.json        # 扩展清单文件
+└── README.md            # 项目说明
 ```
 
 ## 开发指南
-
-### 环境设置
-
-1. 安装 Node.js 和 npm (建议使用 Node.js v14 或更高版本)
-2. 克隆仓库并安装依赖：
-
-```bash
-git clone <仓库地址>
-cd weibo-up
-npm install
-```
-
-### 开发流程
-
-1. 在开发模式下构建项目（带有文件监听）：
-
-```bash
-npm run dev
-```
-
-2. 构建生产版本：
-
-```bash
-npm run build
-```
-
-3. 构建完成后，可以在 `dist` 目录中找到生成的 `weibo-up.user.js` 文件
 
 ### 功能模块说明
 
@@ -105,43 +83,49 @@ npm run build
 - **comments.js**：实现评论悬浮窗功能，让用户不需要跳转页面即可查看评论
 - **ui.js**：实现控制面板，让用户可以方便地调整各项设置
 
+### 开发流程
+
+这是一个Chrome扩展项目，开发流程如下：
+
+1. 修改源代码文件
+2. 在Chrome浏览器中访问 `chrome://extensions/`
+3. 开启开发者模式
+4. 点击"重新加载"按钮或重新加载扩展
+5. 测试功能是否正常
+
 ### 自定义开发
 
 如需添加新功能或修改现有功能：
 
 1. 在 `src/modules/` 目录下创建新的功能模块文件
-2. 在 `src/index.js` 中导入并初始化该模块
-3. 运行构建命令生成新的脚本文件
+2. 在 `content.js` 中导入并初始化该模块
+3. 重新加载扩展进行测试
 
 ## 安装指南
 
 ### 浏览器要求
 
-支持安装 Tampermonkey 或 Greasemonkey 的现代浏览器，包括但不限于：
+支持Chrome扩展的现代浏览器，包括但不限于：
 
 - Google Chrome
-- Mozilla Firefox
 - Microsoft Edge
-- Safari
+- 其他基于Chromium的浏览器
 
 ### 安装步骤
 
-1. 安装油猴扩展：
-   - [Chrome 版 Tampermonkey](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo)
-   - [Firefox 版 Tampermonkey](https://addons.mozilla.org/en-US/firefox/addon/tampermonkey/)
-   - [Edge 版 Tampermonkey](https://microsoftedge.microsoft.com/addons/detail/tampermonkey/iikmkjmpaadaobahmlepeloendndfphd)
-
-2. 安装脚本：
-   - [点击此处直接安装脚本](https://gh-proxy.com/https://raw.githubusercontent.com/xzy-nine/youhou/main/weibo-up/dist/weibo-up.user.js)
-   - 或者点击 `dist` 目录下的 `weibo-up.user.js` 文件
-   - 或者在油猴扩展中创建新脚本，并粘贴构建生成的代码
+1. 下载或克隆此项目到本地
+2. 打开Chrome浏览器，访问 `chrome://extensions/`
+3. 开启右上角的"开发者模式"
+4. 点击"加载已解压的扩展程序"
+5. 选择项目根目录（包含manifest.json的文件夹）
+6. 扩展将自动安装并启用
 
 ## 使用方法
 
-1. 安装后自动启用宽屏功能
-2. 使用控制面板调整设置：
-   - 右上角会显示控制面板图标
-   - 点击图标展开完整控制面板
+1. 安装后扩展会自动启用各项功能
+2. 通过扩展图标或页面控制面板调整设置：
+   - 点击浏览器工具栏中的扩展图标打开设置面板
+   - 或者在微博页面右上角找到控制面板图标
    - 可以设置是否启用宽屏、更宽模式、切换主题等
 
 3. 快捷键：
