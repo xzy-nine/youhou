@@ -300,6 +300,10 @@ function getUserId() {
 
 // 更新所有已打开的评论模态框的主题
 function updateCommentModalsTheme(isDark) {
+  // 确保当前页面的UI元素应用正确的主题
+  document.body.classList.remove('woo-theme-dark', 'woo-theme-light');
+  document.body.classList.add(isDark ? 'woo-theme-dark' : 'woo-theme-light');
+  
   // 更新所有已打开的评论模态框
   const commentModals = document.querySelectorAll('.comment-modal');
   commentModals.forEach(modal => {
@@ -317,6 +321,19 @@ function updateCommentModalsTheme(isDark) {
       } catch (error) {
         console.log('[微博主题] 无法更新iframe主题（可能是跨域）:', error);
       }
+    }
+  });
+  
+  // 更新所有iframe内的主题（来自ui.js的功能）
+  document.querySelectorAll('iframe').forEach(iframe => {
+    try {
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+      if (iframeDoc && iframeDoc.body) {
+        iframeDoc.body.classList.remove('woo-theme-dark', 'woo-theme-light');
+        iframeDoc.body.classList.add(isDark ? 'woo-theme-dark' : 'woo-theme-light');
+      }
+    } catch (e) {
+      // 跨域iframe无法访问，忽略错误
     }
   });
 }
@@ -558,11 +575,20 @@ function notifyAllModulesThemeChange(isDark) {
   } catch (e) {
     // 在content script中发送消息到popup可能失败，这是正常的
   }
-  
-  // 触发全局主题变化事件
+    // 触发全局主题变化事件
   window.dispatchEvent(new CustomEvent('weiboThemeChanged', {
     detail: { isDark: isDark }
   }));
+  
+  // 触发主题刷新事件（来自ui.js）
+  const themeRefreshEvent = new CustomEvent('themeRefresh', { detail: { isDark } });
+  document.dispatchEvent(themeRefreshEvent);
+  
+  // 触发传统的主题变化事件（来自ui.js）
+  const themeChangeEvent = new CustomEvent('themechange', { 
+    detail: { theme: isDark ? 'dark' : 'light' } 
+  });
+  document.dispatchEvent(themeChangeEvent);
   
   console.log(`[微博主题] 已通知所有模块主题变更为: ${isDark ? '深色' : '浅色'}`);
 }
