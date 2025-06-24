@@ -554,7 +554,7 @@ function addContentTransparencyStyles() {
             border-radius: 0 !important;
         }        /* 确保页面主容器有正确的z-index - 移除过度强制的设置 */
         #app,
-        #app > div,
+        #app > div:not(.woo-modal-wrap),
         body,
         main,
         [role="main"],
@@ -562,6 +562,15 @@ function addContentTransparencyStyles() {
         .vue-recycle-scroller {
             position: relative;
             z-index: 1;
+        }
+        
+        /* 确保弹窗有更高的z-index */
+        .woo-modal-wrap,
+        .woo-modal-main,
+        #app > div.woo-modal-wrap,
+        #app > div.woo-box-flex.woo-box-alignCenter.woo-box-justifyCenter.woo-modal-wrap {
+            z-index: 9999 !important;
+            position: fixed !important;
         }
         
         /* 确保背景元素在最底层 */
@@ -1323,3 +1332,122 @@ if (document.documentElement) {
 }
 
 console.log('[微博背景] 主题变化监听已启动');
+
+/**
+ * 确保弹窗正常显示，修复被背景样式影响的问题
+ */
+function ensureModalVisibility() {
+    console.log('[微博背景] 检查并修复弹窗显示问题...');
+    
+    // 查找所有可能的弹窗元素
+    const modalSelectors = [
+        '.woo-modal-wrap',
+        '.woo-modal-main',
+        '#app > div.woo-modal-wrap',
+        '#app > div.woo-box-flex.woo-box-alignCenter.woo-box-justifyCenter.woo-modal-wrap',
+        '[class*="modal"]',
+        '[class*="popup"]',
+        '[class*="dialog"]'
+    ];
+    
+    let fixedCount = 0;
+    
+    modalSelectors.forEach(selector => {
+        const modals = document.querySelectorAll(selector);
+        modals.forEach(modal => {
+            const computedStyle = window.getComputedStyle(modal);
+            
+            // 检查是否被错误隐藏或者z-index过低
+            if (computedStyle.display === 'none' && modal.style.display !== 'none') {
+                // 如果元素本身没有设置display:none，但被计算为none，可能是CSS冲突
+                console.log('[微博背景] 发现被CSS影响的弹窗:', selector);
+            }
+            
+            // 强制设置弹窗的z-index
+            const currentZIndex = parseInt(computedStyle.zIndex) || 0;
+            if (currentZIndex < 9999) {
+                modal.style.setProperty('z-index', '9999', 'important');
+                modal.style.setProperty('position', 'fixed', 'important');
+                fixedCount++;
+                console.log('[微博背景] 修复弹窗z-index:', selector, 'from', currentZIndex, 'to 9999');
+            }
+        });
+    });
+    
+    // 特殊处理：确保弹窗容器不受背景透明度影响
+    const modalWraps = document.querySelectorAll('.woo-modal-wrap, [class*="woo-modal"]');
+    modalWraps.forEach(wrap => {
+        // 移除可能被错误应用的背景样式
+        wrap.style.removeProperty('backdrop-filter');
+        wrap.style.removeProperty('background-color');
+        wrap.style.setProperty('background-color', 'initial', 'important');
+        wrap.style.setProperty('backdrop-filter', 'none', 'important');
+    });
+    
+    console.log(`[微博背景] 弹窗显示检查完成，修复了 ${fixedCount} 个元素`);
+    return fixedCount;
+}
+
+/**
+ * 监听弹窗的出现，确保新出现的弹窗能正常显示
+ */
+function setupModalVisibilityObserver() {
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.type === 'childList') {
+                mutation.addedNodes.forEach((node) => {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        // 检查新添加的节点是否是弹窗
+                        if (node.classList && (
+                            node.classList.contains('woo-modal-wrap') ||
+                            node.classList.contains('woo-modal-main') ||
+                            node.className.includes('modal') ||
+                            node.className.includes('popup') ||
+                            node.className.includes('dialog')
+                        )) {
+                            console.log('[微博背景] 检测到新弹窗，确保其正常显示:', node.className);
+                            setTimeout(() => {
+                                ensureModalVisibility();
+                            }, 100);
+                        }
+                        
+                        // 也检查新节点的子元素
+                        const modalChildren = node.querySelectorAll && node.querySelectorAll('.woo-modal-wrap, .woo-modal-main, [class*="modal"], [class*="popup"], [class*="dialog"]');
+                        if (modalChildren && modalChildren.length > 0) {
+                            console.log('[微博背景] 检测到包含弹窗的新容器');
+                            setTimeout(() => {
+                                ensureModalVisibility();
+                            }, 100);
+                        }
+                    }
+                });
+            }
+        });
+    });
+    
+    // 观察整个document的变化
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+    
+    console.log('[微博背景] 弹窗监听器已启动');
+    return observer;
+}
+
+// 暴露函数到全局，方便调试
+window.ensureModalVisibility = ensureModalVisibility;
+window.setupModalVisibilityObserver = setupModalVisibilityObserver;
+
+// 在应用背景时也自动检查弹窗
+const originalApplyContentTransparency = applyContentTransparency;
+if (typeof originalApplyContentTransparency === 'function') {
+    window.applyContentTransparency = function(...args) {
+        const result = originalApplyContentTransparency.apply(this, args);
+        // 延迟一点确保弹窗正常显示
+        setTimeout(() => {
+            ensureModalVisibility();
+        }, 200);
+        return result;
+    };
+}
