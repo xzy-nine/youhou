@@ -342,6 +342,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // 更新设置状态
     if (message.isDark !== undefined) {
       userSettings.userThemeMode = message.isDark;
+      
+      // 如果有userOverride信息，也更新它
+      if (message.userOverride !== undefined) {
+        userSettings.userOverride = message.userOverride;
+        
+        // 保存到存储
+        chrome.storage.local.set({
+          userOverride: message.userOverride,
+          userThemeMode: message.isDark
+        });
+      }
+      
       updateUI();
     }
   }

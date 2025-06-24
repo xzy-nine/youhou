@@ -145,9 +145,18 @@ function setWebsiteMode(isDark, fromUserAction = false) {
     const userId = getUserId();
     const modeValue = isDark ? 1 : 0;
     
+    // 更新最后已知主题状态
+    lastKnownTheme = isDark;
+    
+    // 如果是从用户操作来的，更新用户覆盖设置
+    if (fromUserAction) {
+      userOverride = true;
+      userThemeMode = isDark;
+      saveThemeConfig(true, isDark);
+    }
+    
     // 直接设置localStorage，这会触发微博自己的主题切换逻辑
     localStorage.setItem('darkModeHistory', `[[${userId},${modeValue}]]`);
-    
     // DOM主题应用
     const applyDomTheme = () => {
       if (document.body) {
@@ -306,8 +315,7 @@ function monitorLocalStorage() {
 
     return result;
   };
-  
-  // 监听localStorage变化事件，用于检测用户通过微博原生方式切换主题
+    // 监听localStorage变化事件，用于检测用户通过微博原生方式切换主题
   window.addEventListener('storage', (event) => {
     // 如果是我们自己触发的事件，则忽略
     if (isScriptOperation) {
@@ -325,19 +333,10 @@ function monitorLocalStorage() {
             const newDarkMode = parsed[0][1] === 1;
             
             console.log(`[微博主题] 检测到用户通过微博界面切换主题: ${newDarkMode ? '深色' : '浅色'}`);
-              // 记录用户手动覆盖和当前主题状态
-            userOverride = true;
-            saveThemeConfig(true, newDarkMode);
             
-            // 直接通知所有模块主题已改变，不再调用setWebsiteMode
-            notifyAllModulesThemeChange(newDarkMode);
-            
-            // 只有当状态变化时才通知
-            if (lastNotifiedMode !== newDarkMode || lastNotifiedOverrideState !== true) {
-              simpleNotify(`已切换为${newDarkMode ? '深色' : '浅色'}模式`);
-              lastNotifiedMode = newDarkMode;
-              lastNotifiedOverrideState = true;
-            }
+            // 使用handleNativeThemeChange处理，确保更新到扩展
+            lastKnownTheme = newDarkMode;
+            handleNativeThemeChange(newDarkMode);
           }
         }
       } catch (error) {
@@ -439,7 +438,20 @@ function handleNativeThemeChange(newTheme) {
   
   // 记录用户手动覆盖状态
   userOverride = true;
+  userThemeMode = newTheme; // 确保userThemeMode也被更新
   saveThemeConfig(true, newTheme);
+  
+  // 向扩展发送消息，更新popup中的按钮状态
+  try {
+    chrome.runtime.sendMessage({
+      action: 'themeChanged',
+      isDark: newTheme,
+      userOverride: true,
+      userThemeMode: newTheme
+    });
+  } catch (e) {
+    console.log('[微博主题] 发送消息到popup失败，这是正常现象:', e);
+  }
   
   // 通知所有模块主题已改变
   notifyAllModulesThemeChange(newTheme);
@@ -466,12 +478,13 @@ function notifyAllModulesThemeChange(isDark) {
   if (typeof updateNotificationTheme === 'function') {
     updateNotificationTheme(isDark);
   }
-  
-  // 更新popup界面的主题（如果存在）
+    // 更新popup界面的主题（如果存在）
   try {
     chrome.runtime.sendMessage({
       action: 'themeChanged',
-      isDark: isDark
+      isDark: isDark,
+      userOverride: userOverride,
+      userThemeMode: isDark
     });
   } catch (e) {
     // 在content script中发送消息到popup可能失败，这是正常的
@@ -501,15 +514,27 @@ function monitorThemeButtonClicks() {
                           target.closest('[title*="浅色"]') ||
                           target.closest('[title*="夜间"]') ||
                           target.closest('[title*="日间"]') ||
+                          target.closest('[class*="mode"]') ||    // 增加可能的class匹配
+                          target.closest('[id*="mode"]') ||       // 增加可能的id匹配
+                          target.closest('[id*="theme"]') ||      // 增加可能的id匹配
                           target.textContent?.includes('主题') ||
                           target.textContent?.includes('深色') ||
-                          target.textContent?.includes('浅色');
+                          target.textContent?.includes('浅色') ||
+                          target.textContent?.includes('夜间模式') ||
+                          target.textContent?.includes('日间模式');
     
     if (isThemeButton) {
       console.log('[微博主题] 检测到可能的主题切换按钮点击:', target);
       
+      // 立即检查一次，以便更快响应
+      const currentModeNow = getCurrentWebsiteMode();
+      if (currentModeNow !== lastKnownTheme && !isScriptOperation) {
+        console.log(`[微博主题] 按钮点击立即检测到主题变化`);
+        handleNativeThemeChange(currentModeNow);
+      }
+      
       // 多个时间点检测主题变化，确保不遗漏
-      [50, 100, 200, 500].forEach(delay => {
+      [50, 100, 200, 500, 1000].forEach(delay => {
         setTimeout(() => {
           const currentMode = getCurrentWebsiteMode();
           if (currentMode !== lastKnownTheme && !isScriptOperation) {
