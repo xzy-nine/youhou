@@ -201,21 +201,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         applyWidescreenStyles();
       });
       break;
-        case 'updateBackground':
+    case 'updateBackground':
       // 重新从存储获取设置并应用
       initStorage().then(() => {
-        if (backgroundStore.enabled) {          // 先移除现有背景，然后重新应用
-          const existingBg = document.querySelector('#weibo-blur-background');
-          if (existingBg) {
-            existingBg.remove();
+        if (backgroundStore.enabled) {
+          // 使用更新函数而不是重新创建，避免闪烁
+          if (typeof updateBackgroundStyles === 'function') {
+            updateBackgroundStyles();
+          } else {
+            // 如果更新函数不存在，则温和地应用背景
+            const existingBg = document.querySelector('#weibo-blur-background');
+            if (!existingBg) {
+              // 只有在背景不存在时才创建新的
+              applyBackground().catch(error => {
+                console.error('[微博增强] 背景应用失败:', error);
+              });
+            } else {
+              // 背景存在时，只更新样式参数
+              if (typeof updateBackgroundOpacity === 'function') {
+                updateBackgroundOpacity();
+              }
+              if (typeof addContentTransparencyStyles === 'function') {
+                addContentTransparencyStyles();
+              }
+            }
           }
-          
-          // 延迟一点时间确保DOM清理完成
-          setTimeout(() => {
-            applyBackground().catch(error => {
-              console.error('[微博增强] 背景应用失败:', error);
-            });
-          }, 100);
         } else {          // 移除背景
           const bg = document.querySelector('#weibo-blur-background');
           if (bg) {

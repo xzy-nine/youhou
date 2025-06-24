@@ -502,8 +502,8 @@ function addContentTransparencyStyles() {
         existingStyle.id = styleId;
         document.head.appendChild(existingStyle);
     }    // 获取用户设置的模糊程度和不透明度
-    const blurPixels = backgroundStore.content_blur || 5;
-    const opacity = backgroundStore.content_opacity !== undefined ? backgroundStore.content_opacity : 0.3;
+    const blurPixels = backgroundStore.content_blur || 1;
+    const opacity = backgroundStore.content_opacity !== undefined ? backgroundStore.content_opacity : 0.7;
       // 检测深色模式 - 优先使用标准的微博主题类名
     const isDarkMode = document.body && document.body.classList.contains('woo-theme-dark') ||
                        document.documentElement && document.documentElement.classList.contains('woo-theme-dark') ||

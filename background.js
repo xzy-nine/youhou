@@ -83,15 +83,14 @@ chrome.runtime.onInstalled.addListener(() => {
     widescreen_enabled: true,
     widescreen_loose: false,
     widescreen_notify_enabled: false,
-    
-    // 背景设置
+      // 背景设置
     background_enabled: false,
     background_type: 'bing',
     background_url: '',
-    background_opacity: 0.2,
+    background_opacity: 1.0,
     background_content_transparency: true,
     background_content_opacity: 0.7,
-    background_content_blur: 5,
+    background_content_blur: 1,
     background_notify_enabled: true,
     
     // 主题设置

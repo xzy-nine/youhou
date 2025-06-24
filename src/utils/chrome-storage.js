@@ -80,10 +80,10 @@ const backgroundStore = {
   enabled: false,
   type: 'bing',
   url: '',
-  opacity: 0.2,
+  opacity: 1.0,
   content_transparency: true,
   content_opacity: 0.7,
-  content_blur: 5,
+  content_blur: 1,
   notify_enabled: true
 };
 
@@ -107,13 +107,12 @@ async function initStorage() {
     backgroundStore.enabled = allSettings.background_enabled !== undefined ? allSettings.background_enabled : false;
     backgroundStore.type = allSettings.background_type || 'bing';
     backgroundStore.url = allSettings.background_url || '';
-    backgroundStore.opacity = allSettings.background_opacity !== undefined ? allSettings.background_opacity : 0.2;
+    backgroundStore.opacity = allSettings.background_opacity !== undefined ? allSettings.background_opacity : 1.0;
     backgroundStore.content_transparency = allSettings.background_content_transparency !== undefined ? 
                                       allSettings.background_content_transparency : true;
     backgroundStore.content_opacity = allSettings.background_content_opacity !== undefined ? 
-                                  allSettings.background_content_opacity : 0.7;
-    backgroundStore.content_blur = allSettings.background_content_blur !== undefined ? 
-                              allSettings.background_content_blur : 5;
+                                  allSettings.background_content_opacity : 0.7;    backgroundStore.content_blur = allSettings.background_content_blur !== undefined ? 
+                              allSettings.background_content_blur : 1;
     backgroundStore.notify_enabled = allSettings.background_notify_enabled !== undefined ? 
                                 allSettings.background_notify_enabled : true;
     
