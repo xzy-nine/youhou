@@ -304,35 +304,5 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
       break;
   }
-  
-  sendResponse({success: true});
+    sendResponse({success: true});
 });
-
-// 如果 background-image.js 中的函数没有正确暴露，提供备选的诊断函数
-if (!window.diagnoseBackgroundStatus) {
-  window.diagnoseBackgroundStatus = function() {
-    console.log('[微博增强] 临时诊断函数启动');
-    console.log('1. backgroundStore状态:', typeof backgroundStore !== 'undefined' ? backgroundStore : '未定义');    console.log('2. DOM状态:', {
-      readyState: document.readyState,
-      backgroundElement: !!document.querySelector('#weibo-blur-background'),
-      transparencyStyle: !!document.getElementById('weibo-background-transparency-style')
-    });
-    console.log('3. 扩展脚本加载状态:', {
-      applyBackground: typeof applyBackground,
-      chromeStorage: typeof chromeStorage,
-      simpleNotify: typeof simpleNotify
-    });
-    console.log('[微博增强] 如果问题持续，请尝试刷新页面');
-  };
-}
-
-if (!window.reapplyBackground) {
-  window.reapplyBackground = async function() {
-    console.log('[微博增强] 临时重新应用背景函数...');
-    if (typeof applyBackground === 'function') {
-      await applyBackground();      console.log('[微博增强] 背景重新应用完成');
-    } else {
-      console.error('[微博增强] applyBackground函数不可用，请刷新页面');
-    }
-  };
-}

@@ -126,18 +126,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.storage.local.set(message.settings, () => {
       sendResponse({ success: true });
     });
-    return true;
-  }
-    // 清理缓存 (开发调试用)
-  if (message.action === 'clearCache') {
-    clearCacheData().then(success => {
-      sendResponse({ success: success });
-    }).catch(error => {
-      console.error('[微博增强] 手动清理缓存失败:', error);
-      sendResponse({ success: false, error: error.message });
-    });
-    return true;
-  }
+    return true;  }
   
   // 主题变更消息处理
   if (message.action === 'themeChanged') {

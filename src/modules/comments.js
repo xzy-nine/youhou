@@ -8,12 +8,8 @@
 function setupCommentSystem() {
   // 添加评论悬浮窗样式
   addCommentModalStyles();
-  
-  // 启动评论链接拦截
+    // 启动评论链接拦截
   interceptCommentLinks();
-  
-  // 添加调试快捷键
-  setupDebugShortcuts();
   
   // 设置主题变化监听
   setupCommentThemeListener();
@@ -365,75 +361,6 @@ function updateAllCommentModalsTheme(isDark) {
       } catch (error) {
         console.log('[微博评论] 无法更新iframe主题（可能是跨域）:', error);
       }
-    }
-  });
-}
-
-// 调试函数：分析页面中的评论相关元素
-function analyzeCommentElements() {
-  console.log('=== 微博评论元素分析 ===');
-  
-  // 查找所有可能的评论相关元素
-  const commentSelectors = [
-    'a[href*="comment"]',
-    'div[class*="comment"]',
-    'span[class*="comment"]',
-    'i[class*="comment"]',
-    'div[class*="toolbar"]',
-    'footer',
-    '[class*="Feed_func"]',
-    'a:contains("评论")',
-    'div:contains("条评论")'
-  ];
-  
-  commentSelectors.forEach(selector => {
-    try {
-      const elements = document.querySelectorAll(selector);
-      if (elements.length > 0) {
-        console.log(`找到 ${elements.length} 个 "${selector}" 元素:`);
-        elements.forEach((el, index) => {
-          if (index < 5) { // 只显示前5个，避免日志过长
-            console.log(`  ${index + 1}. 文本: "${el.textContent.trim()}", 类名: "${el.className}", 标签: ${el.tagName}`);
-          }
-        });
-        if (elements.length > 5) {
-          console.log(`  ... 还有 ${elements.length - 5} 个元素未显示`);
-        }
-      }
-    } catch (e) {
-      // 忽略querySelector错误
-    }
-  });
-  
-  // 查找页面中的微博ID
-  const scripts = document.querySelectorAll('script');
-  console.log('页面中的微博ID信息:');
-  for (const script of scripts) {
-    const content = script.textContent || script.innerText;
-    if (content.includes('mid') || content.includes('status')) {
-      const midMatches = content.match(/"mid":\s*"([^"]+)"/g);
-      const statusMatches = content.match(/\/status\/(\w+)/g);
-      if (midMatches) {
-        console.log('  找到MID:', midMatches.slice(0, 3));
-      }
-      if (statusMatches) {
-        console.log('  找到Status:', statusMatches.slice(0, 3));
-      }
-      break;
-    }
-  }
-  
-  console.log('当前页面URL:', window.location.href);
-  console.log('=== 分析完成 ===');
-}
-
-// 添加调试快捷键
-function setupDebugShortcuts() {
-  document.addEventListener('keydown', (e) => {
-    // Ctrl+Shift+D 分析评论元素
-    if (e.ctrlKey && e.shiftKey && e.key === 'D') {
-      e.preventDefault();
-      analyzeCommentElements();
     }
   });
 }

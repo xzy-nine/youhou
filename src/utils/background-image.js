@@ -871,30 +871,7 @@ function diagnoseBackgroundStatus() {
         console.warn('%c建议: 存储未初始化，请尝试刷新页面', 'color: #ffc107; font-weight: bold;');
     } else if (backgroundStore.enabled && !backgroundElement) {
         console.warn('%c建议: 背景已启用但元素不存在，尝试运行 reapplyBackground()', 'color: #ffc107; font-weight: bold;');
-    } else if (!backgroundStore.enabled) {
-        console.info('%c提示: 背景功能已禁用，请在扩展弹出页面中启用', 'color: #28a745; font-weight: bold;');
-    }
-}
-
-/**
- * 手动重新应用背景（调试用）
- */
-async function reapplyBackground() {
-    console.log('[微博背景] 手动重新应用背景...');
-    
-    // 先运行诊断
-    diagnoseBackgroundStatus();
-    
-    // 强制重新初始化存储
-    if (typeof initStorage === 'function') {
-        await initStorage();
-        console.log('[微博背景] 存储重新初始化完成');
-    }
-    
-    // 重新应用背景
-    if (typeof applyBackground === 'function') {
-        await applyBackground();
-        console.log('[微博背景] 背景重新应用完成');
+    } else if (!backgroundStore.enabled) {        console.info('%c提示: 背景功能已禁用，请在扩展弹出页面中启用', 'color: #28a745; font-weight: bold;');
     }
 }
 
@@ -959,58 +936,8 @@ async function forceApplyBackground() {
         
         // 设置持久化
         setupBackgroundPersistence();
-        
-    } catch (error) {
+          } catch (error) {
         console.error('[微博背景] 强制应用背景失败:', error);
-    }
-}
-
-/**
- * 测试必应API连接（调试用）
- */
-async function testBingAPI() {
-    console.log('[微博背景] 开始测试必应API...');
-    
-    try {
-        const apiUrl = 'https://cn.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1';
-        console.log('[微博背景] API地址:', apiUrl);
-        
-        const response = await fetch(apiUrl);
-        console.log('[微博背景] 响应状态:', response.status, response.statusText);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP错误: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log('[微博背景] API完整响应数据:', data);
-        
-        if (data && data.images && data.images.length > 0) {
-            const imageInfo = data.images[0];
-            const fullUrl = 'https://cn.bing.com' + imageInfo.url;
-            
-            console.log('[微博背景] 今日图片信息:', {
-                标题: imageInfo.title,
-                版权: imageInfo.copyright,
-                原始URL: imageInfo.url,
-                完整URL: fullUrl,
-                开始日期: imageInfo.startdate,
-                结束日期: imageInfo.enddate
-            });
-            
-            return {
-                success: true,
-                imageInfo: imageInfo,
-                fullUrl: fullUrl
-            };
-        } else {
-            console.error('[微博背景] API返回数据格式异常:', data);
-            return { success: false, error: 'API返回数据格式异常' };
-        }
-        
-    } catch (error) {
-        console.error('[微博背景] 测试必应API失败:', error);
-        return { success: false, error: error.message };
     }
 }
 
