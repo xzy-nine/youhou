@@ -54,11 +54,51 @@ document.addEventListener('DOMContentLoaded', async () => {
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   console.log('[微博增强 Popup] 系统主题偏好:', prefersDark ? '深色' : '浅色');
   setThemeMode(prefersDark);
-    // 从存储中加载设置
-  chrome.storage.local.get(null, (settings) => {
+  // 从存储中加载设置
+  try {
+    const settings = await new Promise((resolve, reject) => {
+      chrome.storage.local.get(null, (result) => {
+        if (chrome.runtime.lastError) {
+          reject(chrome.runtime.lastError);
+        } else {
+          resolve(result);
+        }
+      });
+    });
+    
     console.log('[微博增强 Popup] 从存储加载设置:', settings);
-    // 更新设置对象
+    
+    // 更新设置对象，保留默认值作为fallback
     userSettings = { ...userSettings, ...settings };
+    
+    // 验证关键配置项
+    const requiredKeys = ['widescreen_enabled', 'background_enabled', 'userOverride'];
+    const missingKeys = requiredKeys.filter(key => !(key in userSettings));
+    
+    if (missingKeys.length > 0) {
+      console.warn('[微博增强 Popup] 发现缺失的配置项:', missingKeys);
+      // 为缺失的配置项设置默认值
+      missingKeys.forEach(key => {
+        switch(key) {
+          case 'widescreen_enabled':
+            userSettings.widescreen_enabled = true;
+            break;
+          case 'background_enabled':
+            userSettings.background_enabled = false;
+            break;
+          case 'userOverride':
+            userSettings.userOverride = false;
+            break;
+        }
+      });
+      
+      // 保存缺失的配置项
+      const missingSettings = {};
+      missingKeys.forEach(key => {
+        missingSettings[key] = userSettings[key];
+      });
+      chrome.storage.local.set(missingSettings);
+    }
     
     // 根据用户设置更新主题
     if (userSettings.userOverride) {
@@ -70,8 +110,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(() => {
       updateUI();
     }, 100);
-  });
-    // 设置事件监听器
+    
+  } catch (error) {
+    console.error('[微博增强 Popup] 加载设置失败:', error);
+    // 使用默认设置
+    setTimeout(() => {
+      updateUI();
+    }, 100);
+  }
+  // 设置事件监听器
   setupEventListeners();
   
   // 监听来自content script的主题变化消息
@@ -79,6 +126,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // 主动请求当前页面的主题状态同步
   requestThemeSync();
+  
+  // 检查配置同步状态
+  setTimeout(() => {
+    checkConfigSync();
+  }, 200);
 });
 
 function updateUI() {
@@ -441,6 +493,34 @@ function setupMessageListener() {
       }
     }
   });
+}
+
+// 检查配置同步状态
+async function checkConfigSync() {
+  try {
+    // 向content script发送配置同步检查请求
+    const tabs = await new Promise(resolve => {
+      chrome.tabs.query({active: true, currentWindow: true}, resolve);
+    });
+    
+    if (tabs[0] && tabs[0].url && tabs[0].url.includes('weibo.com')) {
+      try {
+        const response = await new Promise(resolve => {
+          chrome.tabs.sendMessage(tabs[0].id, { action: 'getConfigStatus' }, resolve);
+        });
+        
+        if (response && response.success) {
+          console.log('[微博增强 Popup] 配置同步状态正常');
+        } else {
+          console.warn('[微博增强 Popup] 配置可能未同步到content script');
+        }
+      } catch (error) {
+        console.log('[微博增强 Popup] 无法检查配置同步状态，可能页面未加载完成');
+      }
+    }
+  } catch (error) {
+    console.error('[微博增强 Popup] 配置同步检查失败:', error);
+  }
 }
 
 // 增强的主题按钮功能，确保与网页原生主题按钮同步

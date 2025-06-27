@@ -51,18 +51,67 @@ async function clearCacheData() {
   }
 }
 
-// 扩展启用时的处理
+// 扩展启用时的处理 - 包含配置验证
 chrome.management.onEnabled.addListener(async (info) => {
   if (info.id === chrome.runtime.id) {
-    console.log('[微博增强] 扩展已启用，正在清理缓存...');
-    await clearCacheData();
+    console.log('[微博增强] 扩展已启用，开始配置验证和缓存清理...');
+    
+    try {
+      // 获取当前存储的配置
+      const existingSettings = await new Promise(resolve => {
+        chrome.storage.local.get(null, resolve);
+      });
+      
+      console.log('[微博增强] 现有配置:', existingSettings);
+      
+      // 验证关键配置项
+      const requiredKeys = [
+        'widescreen_enabled', 'background_enabled', 'userOverride',
+        'background_type', 'background_opacity'
+      ];
+      
+      const missingKeys = requiredKeys.filter(key => !(key in existingSettings));
+      
+      if (missingKeys.length > 0) {
+        console.warn('[微博增强] 发现缺失配置项:', missingKeys);
+        
+        // 补充缺失的配置项
+        const defaultValues = {
+          widescreen_enabled: true,
+          background_enabled: false,
+          userOverride: false,
+          background_type: 'bing',
+          background_opacity: 1.0
+        };
+        
+        const configsToAdd = {};
+        missingKeys.forEach(key => {
+          if (key in defaultValues) {
+            configsToAdd[key] = defaultValues[key];
+          }
+        });
+        
+        if (Object.keys(configsToAdd).length > 0) {
+          await chrome.storage.local.set(configsToAdd);
+          console.log('[微博增强] 已补充缺失配置:', configsToAdd);
+        }
+      } else {
+        console.log('[微博增强] 配置完整性验证通过');
+      }
+      
+      // 清理缓存数据但保留用户配置
+      await clearCacheData();
+      
+    } catch (error) {
+      console.error('[微博增强] 启用时处理失败:', error);
+    }
     
     // 显示通知
     chrome.notifications.create({
       type: 'basic',
       iconUrl: 'icons/icon128.png',
       title: '微博增强',
-      message: '扩展已启用，缓存已清理，配置已保留',
+      message: '扩展已启用，配置已验证，缓存已清理',
       priority: 1
     });
   }
@@ -75,8 +124,8 @@ chrome.management.onDisabled.addListener(async (info) => {
   }
 });
 
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('微博增强扩展已安装');
+chrome.runtime.onInstalled.addListener(async (details) => {
+  console.log('微博增强扩展已安装，原因:', details.reason);
     // 设置默认配置
   const defaultSettings = {
     // 宽屏设置
@@ -98,8 +147,43 @@ chrome.runtime.onInstalled.addListener(() => {
     userThemeMode: null
   };
   
-  // 将默认设置保存到存储
-  chrome.storage.local.set(defaultSettings);
+  // 只在首次安装或重新安装时设置默认配置，更新时保留用户配置
+  if (details.reason === 'install') {
+    await chrome.storage.local.set(defaultSettings);
+    console.log('[微博增强] 首次安装，已设置默认配置');
+  } else if (details.reason === 'update') {
+    // 检查现有配置，只添加缺失的配置项
+    const existingSettings = await new Promise(resolve => {
+      chrome.storage.local.get(null, resolve);
+    });
+    
+    const missingSettings = {};
+    for (const [key, value] of Object.entries(defaultSettings)) {
+      if (!(key in existingSettings)) {
+        missingSettings[key] = value;
+      }
+    }
+    
+    if (Object.keys(missingSettings).length > 0) {
+      await chrome.storage.local.set(missingSettings);
+      console.log('[微博增强] 扩展更新，已添加缺失的配置项:', missingSettings);
+    } else {
+      console.log('[微博增强] 扩展更新，用户配置完整，无需添加默认配置');
+    }
+  } else {
+    // 开发者模式重新加载等情况，检查并保留用户配置
+    const existingSettings = await new Promise(resolve => {
+      chrome.storage.local.get(null, resolve);
+    });
+    
+    if (Object.keys(existingSettings).length === 0) {
+      // 如果没有配置，设置默认配置
+      await chrome.storage.local.set(defaultSettings);
+      console.log('[微博增强] 重新加载，已设置默认配置');
+    } else {
+      console.log('[微博增强] 重新加载，保留现有用户配置:', existingSettings);
+    }
+  }
   
   // 显示安装成功的通知
   chrome.notifications.create({
@@ -109,6 +193,34 @@ chrome.runtime.onInstalled.addListener(() => {
     message: '微博增强扩展已成功安装，请访问微博网站体验增强功能。',
     priority: 2
   });
+});
+
+// 扩展启动时的处理
+chrome.runtime.onStartup.addListener(async () => {
+  console.log('[微博增强] 扩展启动，开始验证配置完整性');
+  
+  try {
+    // 获取现有配置
+    const existingSettings = await new Promise(resolve => {
+      chrome.storage.local.get(null, resolve);
+    });
+    
+    // 验证关键配置项是否存在
+    const requiredKeys = [
+      'widescreen_enabled', 'background_enabled', 'userOverride'
+    ];
+    
+    const missingKeys = requiredKeys.filter(key => !(key in existingSettings));
+    
+    if (missingKeys.length > 0) {
+      console.warn('[微博增强] 启动时发现缺失配置项:', missingKeys);
+      // 可以选择设置缺失的默认值或者提示用户
+    } else {
+      console.log('[微博增强] 启动时配置验证通过，用户配置:', existingSettings);
+    }
+  } catch (error) {
+    console.error('[微博增强] 启动时配置验证失败:', error);
+  }
 });
 
 // 处理来自内容脚本的消息

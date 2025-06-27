@@ -9,9 +9,17 @@ async function initialize() {
       await new Promise(resolve => {
         document.addEventListener('DOMContentLoaded', resolve);
       });
-    }    // 首先初始化存储
+    }    // 首先验证和恢复配置
+    if (typeof validateAndRecoverConfig === 'function') {
+      const configStatus = await validateAndRecoverConfig();
+      if (configStatus.fixed) {
+        console.log('[微博增强] 配置已自动修复:', configStatus.changes);
+      }
+    }
+    
+    // 然后初始化存储
     const storageInitialized = await initStorage();
-    console.log('[微博增强] 存储初始化结果:', storageInitialized);    // 设置主题系统（优先初始化主题）
+    console.log('[微博增强] 存储初始化结果:', storageInitialized);// 设置主题系统（优先初始化主题）
     setupThemeSystem();
     
     // 设置主题联动系统
@@ -302,6 +310,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           console.log('[微博增强] 背景功能已禁用，相关样式已清理');
         }
       });
+      break;
+      
+    case 'getConfigStatus':
+      // 返回当前配置状态
+      try {
+        sendResponse({
+          success: true,
+          storageInitialized: typeof widescreenStore !== 'undefined' && typeof backgroundStore !== 'undefined',
+          widescreenEnabled: widescreenStore ? widescreenStore.enabled : false,
+          backgroundEnabled: backgroundStore ? backgroundStore.enabled : false,
+          userOverride: userOverride || false
+        });
+      } catch (error) {
+        console.error('[微博增强] 获取配置状态失败:', error);
+        sendResponse({ success: false, error: error.message });
+      }
       break;
   }
     sendResponse({success: true});

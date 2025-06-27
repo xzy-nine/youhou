@@ -100,10 +100,12 @@ async function initStorage() {
         resolve(result || {});
       });
     });
-      // 宽屏设置
+    
+    console.log('[微博增强] 存储初始化 - 原始设置:', allSettings);
+      // 宽屏设置 - 使用存储值或默认值
     widescreenStore.enabled = allSettings.widescreen_enabled !== undefined ? allSettings.widescreen_enabled : true;
-    widescreenStore.loose = allSettings.widescreen_loose || false;
-    widescreenStore.notify_enabled = allSettings.widescreen_notify_enabled || false;    // 背景设置
+    widescreenStore.loose = allSettings.widescreen_loose !== undefined ? allSettings.widescreen_loose : false;
+    widescreenStore.notify_enabled = allSettings.widescreen_notify_enabled !== undefined ? allSettings.widescreen_notify_enabled : false;    // 背景设置 - 使用存储值或默认值
     backgroundStore.enabled = allSettings.background_enabled !== undefined ? allSettings.background_enabled : false;
     backgroundStore.type = allSettings.background_type || 'bing';
     backgroundStore.url = allSettings.background_url || '';
@@ -126,11 +128,36 @@ async function initStorage() {
       hasCustomUrl: !!backgroundStore.url
     });
     
-    // 主题设置
-    userOverride = allSettings.userOverride || false;
+    // 主题设置 - 使用存储值或默认值
+    userOverride = allSettings.userOverride !== undefined ? allSettings.userOverride : false;
     userThemeMode = allSettings.userThemeMode !== undefined ? allSettings.userThemeMode : null;
     
-    console.log('[微博增强] 存储初始化完成', { widescreenStore, backgroundStore, userOverride, userThemeMode });
+    console.log('[微博增强] 存储初始化完成', { 
+      widescreenStore, 
+      backgroundStore, 
+      userOverride, 
+      userThemeMode,
+      totalKeys: Object.keys(allSettings).length
+    });
+    
+    // 如果某些关键配置不存在，保存默认值到存储（仅限缺失的项）
+    const defaultsToSave = {};
+    
+    if (allSettings.widescreen_enabled === undefined) {
+      defaultsToSave.widescreen_enabled = widescreenStore.enabled;
+    }
+    if (allSettings.background_enabled === undefined) {
+      defaultsToSave.background_enabled = backgroundStore.enabled;
+    }
+    if (allSettings.userOverride === undefined) {
+      defaultsToSave.userOverride = userOverride;
+    }
+    
+    if (Object.keys(defaultsToSave).length > 0) {
+      console.log('[微博增强] 保存缺失的默认配置:', defaultsToSave);
+      await chrome.storage.local.set(defaultsToSave);
+    }
+    
     return true;
   } catch (error) {
     console.error('[微博增强] 存储初始化失败:', error);
@@ -177,5 +204,70 @@ async function saveThemeConfig(isOverride, currentMode = null) {
   } catch (error) {
     console.error('[微博增强] 主题配置保存失败:', error);
     throw error;
+  }
+}
+
+// 配置验证和恢复功能
+async function validateAndRecoverConfig() {
+  try {
+    const allData = await new Promise(resolve => {
+      chrome.storage.local.get(null, resolve);
+    });
+    
+    const requiredConfigs = {
+      widescreen_enabled: true,
+      widescreen_loose: false,
+      widescreen_notify_enabled: false,
+      background_enabled: false,
+      background_type: 'bing',
+      background_url: '',
+      background_opacity: 1.0,
+      background_content_transparency: true,
+      background_content_opacity: 0.7,
+      background_content_blur: 1,
+      background_notify_enabled: true,
+      userOverride: false,
+      userThemeMode: null
+    };
+    
+    const missingConfigs = {};
+    const corruptedConfigs = {};
+    
+    // 检查缺失和损坏的配置
+    for (const [key, defaultValue] of Object.entries(requiredConfigs)) {
+      if (!(key in allData)) {
+        missingConfigs[key] = defaultValue;
+      } else {
+        // 验证配置类型
+        const storedValue = allData[key];
+        const expectedType = typeof defaultValue;
+        
+        if (typeof storedValue !== expectedType && storedValue !== null) {
+          console.warn(`[微博增强] 配置项 ${key} 类型不匹配，期望 ${expectedType}，实际 ${typeof storedValue}`);
+          corruptedConfigs[key] = defaultValue;
+        }
+      }
+    }
+    
+    const needsUpdate = Object.keys(missingConfigs).length > 0 || Object.keys(corruptedConfigs).length > 0;
+    
+    if (needsUpdate) {
+      const configsToSave = { ...missingConfigs, ...corruptedConfigs };
+      await chrome.storage.local.set(configsToSave);
+      
+      console.log('[微博增强] 配置验证完成，已修复:', {
+        missing: missingConfigs,
+        corrupted: corruptedConfigs
+      });
+      
+      return { fixed: true, changes: configsToSave };
+    } else {
+      console.log('[微博增强] 配置验证通过，无需修复');
+      return { fixed: false, changes: {} };
+    }
+    
+  } catch (error) {
+    console.error('[微博增强] 配置验证失败:', error);
+    return { fixed: false, error: error.message };
   }
 }
