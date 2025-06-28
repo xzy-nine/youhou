@@ -91,6 +91,22 @@ async function getBackgroundUrl() {
  * 应用背景图片到页面
  */
 async function applyBackground() {
+    // 检查当前URL是否为搜索页面，如果是则禁用背景功能
+    const currentUrl = window.location.href;
+    if (currentUrl.includes('s.weibo.com/weibo?q=')) {
+        console.log('[微博背景] 在搜索页面 s.weibo.com/weibo?q= 下禁用背景功能');
+        // 清理现有背景和样式
+        const existingBg = document.querySelector('#weibo-blur-background');
+        if (existingBg) {
+            existingBg.remove();
+        }
+        const transparencyStyle = document.getElementById('weibo-background-transparency-style');
+        if (transparencyStyle) {
+            transparencyStyle.remove();
+        }
+        return;
+    }
+    
     // 确保存储已初始化
     if (!backgroundStore || backgroundStore.enabled === undefined) {
         console.warn('[微博背景] 存储未初始化，等待2秒后重试...');
@@ -489,6 +505,19 @@ function setupBackgroundPersistence() {
  * 添加内容半透明样式
  */
 function addContentTransparencyStyles() {
+    // 检查当前URL是否为搜索页面，如果是则禁用透明功能
+    const currentUrl = window.location.href;
+    if (currentUrl.includes('s.weibo.com/weibo?q=')) {
+        console.log('[微博背景] 在搜索页面 s.weibo.com/weibo?q= 下禁用透明功能');
+        // 清理现有的透明样式
+        const styleId = 'weibo-background-transparency-style';
+        const existingStyle = document.getElementById(styleId);
+        if (existingStyle) {
+            existingStyle.remove();
+        }
+        return;
+    }
+    
     if (!backgroundStore.content_transparency) {
         console.log('[微博背景] 内容半透明功能已禁用');
         return;
@@ -982,11 +1011,28 @@ new MutationObserver(() => {
         lastUrl = url;
         console.log('[微博背景] 检测到页面路由变化:', url);        // 延迟重新应用背景，确保新页面内容加载完成
         setTimeout(() => {
-            if (backgroundStore && backgroundStore.enabled) {
+            // 检查新页面是否为搜索页面
+            if (url.includes('s.weibo.com/weibo?q=')) {
+                console.log('[微博背景] 导航到搜索页面，清理背景功能');
+                // 清理现有背景和样式
+                const existingBg = document.querySelector('#weibo-blur-background');
+                if (existingBg) {
+                    existingBg.remove();
+                }
+                const transparencyStyle = document.getElementById('weibo-background-transparency-style');
+                if (transparencyStyle) {
+                    transparencyStyle.remove();
+                }
+            } else if (backgroundStore && backgroundStore.enabled) {
+                // 如果不是搜索页面且背景功能启用，重新应用背景
                 const bgElement = document.querySelector('#weibo-blur-background');
                 if (!bgElement) {
                     console.log('[微博背景] 路由变化后重新应用背景');
                     applyBackground();
+                } else {
+                    // 即使背景元素存在，也要重新检查透明样式（因为URL可能影响透明功能）
+                    console.log('[微博背景] 路由变化后重新检查透明样式');
+                    addContentTransparencyStyles();
                 }
             }
         }, 1000);
