@@ -32,13 +32,17 @@ function setupThemeSystem() {
       const systemDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
       const currentWebsiteMode = getCurrentWebsiteMode();
       
-      console.log(`[微博主题] 跟随系统模式: ${systemDarkMode ? '深色' : '浅色'}`);
+      console.log(`[微博主题] 跟随系统模式: ${systemDarkMode ? '深色' : '浅色'}, 当前网站模式: ${currentWebsiteMode ? '深色' : '浅色'}`);
       
-      // 如果网站当前模式与系统偏好不符，切换模式
+      // 当设置为跟随系统时，总是应用当前系统主题，不管网站当前是什么状态
+      // 这确保每次加载都能正确跟随系统主题
       if (currentWebsiteMode !== systemDarkMode) {
-        // 传递false表示这不是用户操作
-        setWebsiteMode(systemDarkMode, false);
+        console.log(`[微博主题] 网站模式与系统不符，强制同步系统主题: ${systemDarkMode ? '深色' : '浅色'}`);
+      } else {
+        console.log(`[微博主题] 网站模式与系统一致，确保应用: ${systemDarkMode ? '深色' : '浅色'}`);
       }
+      setWebsiteMode(systemDarkMode, false);
+      
       lastNotifiedMode = systemDarkMode;
       lastKnownTheme = systemDarkMode;
     } else {
@@ -117,12 +121,10 @@ function setupThemeSystem() {
           // 如果设置为跟随系统，立即同步系统主题
           if (!userOverride) {
             const systemIsDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            const currentMode = getCurrentWebsiteMode();
-            
-            if (currentMode !== systemIsDark) {
-              console.log('[微博主题] 检测到重置为跟随系统，正在同步系统主题');
-              setWebsiteMode(systemIsDark, false);
-            }
+            console.log('[微博主题] 检测到重置为跟随系统，强制同步系统主题:', systemIsDark ? '深色' : '浅色');
+            setWebsiteMode(systemIsDark, false);
+            lastNotifiedMode = systemIsDark;
+            lastKnownTheme = systemIsDark;
           }
         }
       }
