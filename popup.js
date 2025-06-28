@@ -431,67 +431,101 @@ function setupMessageListener() {
   // 监听来自background或content script的消息
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('[微博增强 Popup] 收到消息:', message);
+    
+    try {
       if (message.action === 'themeChanged') {
-      console.log('[微博增强 Popup] 收到主题变化消息:', message);
-      
-      // 更新用户设置
-      userSettings.userOverride = message.userOverride;
-      userSettings.userThemeMode = message.isDark;
-      
-      // 保存到存储
-      chrome.storage.local.set({
-        userOverride: message.userOverride,
-        userThemeMode: message.isDark
-      });
-      
-      // 更新popup界面的主题
-      if (message.userOverride) {
-        setThemeMode(message.isDark);
-      } else {
-        // 如果不是用户覆盖，跟随系统主题
-        const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        setThemeMode(systemTheme);
-      }
+        console.log('[微博增强 Popup] 收到主题变化消息:', message);
+        
+        // 更新用户设置
+        userSettings.userOverride = message.userOverride;
+        userSettings.userThemeMode = message.isDark;
+        
+        // 保存到存储
+        chrome.storage.local.set({
+          userOverride: message.userOverride,
+          userThemeMode: message.isDark
+        }, () => {
+          if (chrome.runtime.lastError) {
+            console.error('[微博增强 Popup] 保存主题设置失败:', chrome.runtime.lastError);
+          } else {
+            console.log('[微博增强 Popup] 主题设置已保存');
+          }
+        });
+        
+        // 更新popup界面的主题
+        if (message.userOverride) {
+          setThemeMode(message.isDark);
+        } else {
+          // 如果不是用户覆盖，跟随系统主题
+          const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          setThemeMode(systemTheme);
+        }
+        
         // 立即更新UI状态，确保按钮文字同步更新
-      setTimeout(() => {
-        updateUI();
-      }, 30);
+        setTimeout(() => {
+          updateUI();
+        }, 30);
+        
+        sendResponse({ success: true });
+        return true;
+      }
       
-      sendResponse({ success: true });
-    }
       if (message.action === 'themeReset') {
-      console.log('[微博增强 Popup] 收到主题重置消息:', message);
-      
-      // 更新用户设置
-      userSettings.userOverride = false;
-      userSettings.userThemeMode = null;
-      
-      // 保存到存储
-      chrome.storage.local.set({
-        userOverride: false,
-        userThemeMode: null
-      });
+        console.log('[微博增强 Popup] 收到主题重置消息:', message);
+        
+        // 更新用户设置
+        userSettings.userOverride = false;
+        userSettings.userThemeMode = null;
+        
+        // 保存到存储
+        chrome.storage.local.set({
+          userOverride: false,
+          userThemeMode: null
+        }, () => {
+          if (chrome.runtime.lastError) {
+            console.error('[微博增强 Popup] 保存主题重置失败:', chrome.runtime.lastError);
+          } else {
+            console.log('[微博增强 Popup] 主题已重置');
+          }
+        });
+        
         // 应用系统主题
-      setThemeMode(message.systemIsDark);
+        setThemeMode(message.systemIsDark);
+        
+        // 延迟更新UI状态，确保按钮文字正确显示
+        setTimeout(() => {
+          updateUI();
+        }, 30);
+        
+        sendResponse({ success: true });
+        return true;
+      }
       
-      // 延迟更新UI状态，确保按钮文字正确显示
-      setTimeout(() => {
-        updateUI();
-      }, 30);
+      // 监听存储变化，确保UI与实际状态同步
+      if (message.action === 'storageChanged') {
+        console.log('[微博增强 Popup] 收到存储变化消息');
+        // 重新加载设置并更新UI
+        chrome.storage.local.get(null, (settings) => {
+          if (chrome.runtime.lastError) {
+            console.error('[微博增强 Popup] 重新加载设置失败:', chrome.runtime.lastError);
+          } else {
+            userSettings = { ...userSettings, ...settings };
+            updateUI();
+          }
+        });
+        sendResponse({ success: true });
+        return true;
+      }
       
-      sendResponse({ success: true });
+      // 未识别的消息类型
+      console.warn('[微博增强 Popup] 未识别的消息类型:', message.action);
+      return false;
+      
+    } catch (error) {
+      console.error('[微博增强 Popup] 处理消息时发生错误:', error);
+      sendResponse({ success: false, error: error.message });
+      return true;
     }
-    
-    // 监听存储变化，确保UI与实际状态同步
-    if (message.action === 'storageChanged') {
-      // 重新加载设置并更新UI
-      chrome.storage.local.get(null, (settings) => {
-        userSettings = { ...userSettings, ...settings };
-        updateUI();
-      });
-    }
-    
-    return true; // 表示异步响应
   });
   
   // 监听存储变化事件
@@ -631,10 +665,29 @@ async function enhancedThemeReset() {
 
 // 请求主题状态同步
 function requestThemeSync() {
-    chrome.runtime.sendMessage({ type: 'requestThemeSync' }, (response) => {
-        if (response && response.themeMode) {
-            setThemeMode(response.themeMode);
-            updateUI();
+  console.log('[微博增强 Popup] 请求主题状态同步');
+  
+  chrome.runtime.sendMessage({ type: 'requestThemeSync' }, (response) => {
+    if (chrome.runtime.lastError) {
+      console.error('[微博增强 Popup] 主题同步请求失败:', chrome.runtime.lastError);
+      return;
+    }
+    
+    if (response && response.success) {
+      console.log('[微博增强 Popup] 收到主题同步响应:', response);
+      if (typeof response.themeMode !== 'undefined') {
+        setThemeMode(response.themeMode);
+        
+        // 更新用户设置
+        if (response.userOverride) {
+          userSettings.userOverride = response.userOverride;
+          userSettings.userThemeMode = response.themeMode;
         }
-    });
+        
+        updateUI();
+      }
+    } else {
+      console.warn('[微博增强 Popup] 主题同步响应无效:', response);
+    }
+  });
 }

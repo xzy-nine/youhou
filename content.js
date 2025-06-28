@@ -166,167 +166,190 @@ registerMenus();
 
 // 处理来自弹出窗口的设置更新消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  switch(message.action) {
-    case 'requestThemeSync':
-      // 弹出页请求主题状态同步
-      console.log('[微博增强] 收到主题同步请求');
-      try {
-        const currentTheme = getCurrentWebsiteMode();
-        sendResponse({
-          success: true,
-          userOverride: userOverride || false,
-          userThemeMode: userThemeMode,
-          currentTheme: currentTheme
-        });
-        console.log('[微博增强] 主题同步响应已发送:', {
-          userOverride: userOverride || false,
-          userThemeMode: userThemeMode,
-          currentTheme: currentTheme
-        });
-      } catch (error) {
-        console.error('[微博增强] 主题同步失败:', error);
-        sendResponse({
-          success: false,
-          error: error.message
-        });
-      }
-      return true;
-      
-    case 'updateTheme':
-      console.log('[微博增强] 收到主题更新消息:', message);
-      
-      // 处理主题重置
-      if (message.forceReset) {
-        console.log('[微博增强] 执行主题重置');
-        userOverride = false;
-        userThemeMode = null;
-        
-        // 异步保存重置状态
-        Promise.all([
-          chromeStorage.setValue('userOverride', false),
-          chromeStorage.setValue('userThemeMode', null)
-        ]).then(() => {
-          console.log('[微博增强] 主题重置状态已保存');
+  console.log('[微博增强] Content 收到消息:', message);
+  
+  try {
+    switch(message.action) {
+      case 'requestThemeSync':
+        // 弹出页请求主题状态同步
+        console.log('[微博增强] 收到主题同步请求');
+        try {
+          const currentTheme = getCurrentWebsiteMode();
+          const response = {
+            success: true,
+            userOverride: userOverride || false,
+            userThemeMode: userThemeMode,
+            currentTheme: currentTheme
+          };
           
-          // 应用系统主题
-          if (message.systemTheme !== undefined) {
-            const success = setWebsiteMode(message.systemTheme, false);
-            if (success) {
-              console.log('[微博增强] 系统主题应用成功');
-            } else {
-              console.error('[微博增强] 系统主题应用失败');
-            }
-          }
-        }).catch(error => {
-          console.error('[微博增强] 保存主题重置状态失败:', error);
-        });
-        
-        sendResponse({ success: true });
+          console.log('[微博增强] 主题同步响应:', response);
+          sendResponse(response);
+        } catch (error) {
+          console.error('[微博增强] 主题同步失败:', error);
+          sendResponse({
+            success: false,
+            error: error.message
+          });
+        }
         return true;
-      }
-      
-      // 处理普通主题更新
-      userOverride = message.userOverride;
-      if (message.userThemeMode !== undefined) {
-        userThemeMode = message.userThemeMode;
-      }
-      
-      // 异步保存配置到存储，确保同步
-      Promise.all([
-        chromeStorage.setValue('userOverride', userOverride),
-        chromeStorage.setValue('userThemeMode', userThemeMode)
-      ]).then(() => {
-        console.log('[微博增强] 主题配置已保存到存储');
         
-        // 如果是用户手动设置，立即应用主题
-        if (userOverride && message.userThemeMode !== undefined) {
-          const success = setWebsiteMode(message.userThemeMode, true);
-          if (!success) {
-            console.error('[微博增强] 应用主题失败');
-          }
-        }
+      case 'updateTheme':
+        console.log('[微博增强] 收到主题更新消息:', message);
         
-        // 如果有强制同步标志，确保原生主题按钮状态也更新
-        if (message.forceSync) {
-          setTimeout(() => {
-            const currentMode = getCurrentWebsiteMode();            if (currentMode !== message.userThemeMode && message.userThemeMode !== undefined) {
-              console.log('[微博增强] 强制同步原生主题按钮状态');
-              setWebsiteMode(message.userThemeMode, false);
-            }
-          }, 100);
-        }
-        
-        sendResponse({ success: true });
-      }).catch(error => {
-        console.error('[微博增强] 主题配置保存失败:', error);
-        sendResponse({ success: false, error: error.message });
-      });
-      
-      return true; // 表示异步响应
-      
-    case 'updateWidescreen':
-      // 重新从存储获取设置并应用
-      initStorage().then(() => {
-        applyWidescreenStyles();
-      });
-      break;
-    case 'updateBackground':
-      // 重新从存储获取设置并应用
-      initStorage().then(() => {
-        if (backgroundStore.enabled) {
-          // 使用更新函数而不是重新创建，避免闪烁
-          if (typeof updateBackgroundStyles === 'function') {
-            updateBackgroundStyles();
-          } else {
-            // 如果更新函数不存在，则温和地应用背景
-            const existingBg = document.querySelector('#weibo-blur-background');
-            if (!existingBg) {
-              // 只有在背景不存在时才创建新的
-              applyBackground().catch(error => {
-                console.error('[微博增强] 背景应用失败:', error);
-              });
-            } else {
-              // 背景存在时，只更新样式参数
-              if (typeof updateBackgroundOpacity === 'function') {
-                updateBackgroundOpacity();
-              }
-              if (typeof addContentTransparencyStyles === 'function') {
-                addContentTransparencyStyles();
+        // 处理主题重置
+        if (message.forceReset) {
+          console.log('[微博增强] 执行主题重置');
+          userOverride = false;
+          userThemeMode = null;
+          
+          // 异步保存重置状态
+          Promise.all([
+            chromeStorage.setValue('userOverride', false),
+            chromeStorage.setValue('userThemeMode', null)
+          ]).then(() => {
+            console.log('[微博增强] 主题重置状态已保存');
+            
+            // 应用系统主题
+            if (message.systemTheme !== undefined) {
+              const success = setWebsiteMode(message.systemTheme, false);
+              if (success) {
+                console.log('[微博增强] 系统主题应用成功');
+              } else {
+                console.error('[微博增强] 系统主题应用失败');
               }
             }
-          }
-        } else {          // 移除背景
-          const bg = document.querySelector('#weibo-blur-background');
-          if (bg) {
-            bg.remove();
-          }
+          }).catch(error => {
+            console.error('[微博增强] 保存主题重置状态失败:', error);
+          });
           
-          // 移除内容半透明样式
-          const transparencyStyle = document.getElementById('weibo-background-transparency-style');
-          if (transparencyStyle) {
-            transparencyStyle.remove();
-          }
-          
-          console.log('[微博增强] 背景功能已禁用，相关样式已清理');
+          sendResponse({ success: true });
+          return true;
         }
-      });
-      break;
-      
-    case 'getConfigStatus':
-      // 返回当前配置状态
-      try {
-        sendResponse({
-          success: true,
-          storageInitialized: typeof widescreenStore !== 'undefined' && typeof backgroundStore !== 'undefined',
-          widescreenEnabled: widescreenStore ? widescreenStore.enabled : false,
-          backgroundEnabled: backgroundStore ? backgroundStore.enabled : false,
-          userOverride: userOverride || false
+        
+        // 处理普通主题更新
+        userOverride = message.userOverride;
+        if (message.userThemeMode !== undefined) {
+          userThemeMode = message.userThemeMode;
+        }
+        
+        // 异步保存配置到存储，确保同步
+        Promise.all([
+          chromeStorage.setValue('userOverride', userOverride),
+          chromeStorage.setValue('userThemeMode', userThemeMode)
+        ]).then(() => {
+          console.log('[微博增强] 主题配置已保存到存储');
+          
+          // 如果是用户手动设置，立即应用主题
+          if (userOverride && message.userThemeMode !== undefined) {
+            const success = setWebsiteMode(message.userThemeMode, true);
+            if (!success) {
+              console.error('[微博增强] 应用主题失败');
+            }
+          }
+          
+          // 如果有强制同步标志，确保原生主题按钮状态也更新
+          if (message.forceSync) {
+            setTimeout(() => {
+              const currentMode = getCurrentWebsiteMode();
+              if (currentMode !== message.userThemeMode && message.userThemeMode !== undefined) {
+                console.log('[微博增强] 强制同步原生主题按钮状态');
+                setWebsiteMode(message.userThemeMode, false);
+              }
+            }, 100);
+          }
+          
+          sendResponse({ success: true });
+        }).catch(error => {
+          console.error('[微博增强] 主题配置保存失败:', error);
+          sendResponse({ success: false, error: error.message });
         });
-      } catch (error) {
-        console.error('[微博增强] 获取配置状态失败:', error);
-        sendResponse({ success: false, error: error.message });
-      }
-      break;
+        
+        return true; // 表示异步响应
+        
+      case 'updateWidescreen':
+        // 重新从存储获取设置并应用
+        initStorage().then(() => {
+          applyWidescreenStyles();
+          sendResponse({ success: true });
+        }).catch(error => {
+          console.error('[微博增强] 宽屏设置更新失败:', error);
+          sendResponse({ success: false, error: error.message });
+        });
+        return true;
+        
+      case 'updateBackground':
+        // 重新从存储获取设置并应用
+        initStorage().then(() => {
+          if (backgroundStore.enabled) {
+            // 使用更新函数而不是重新创建，避免闪烁
+            if (typeof updateBackgroundStyles === 'function') {
+              updateBackgroundStyles();
+            } else {
+              // 如果更新函数不存在，则温和地应用背景
+              const existingBg = document.querySelector('#weibo-blur-background');
+              if (!existingBg) {
+                // 只有在背景不存在时才创建新的
+                applyBackground().catch(error => {
+                  console.error('[微博增强] 背景应用失败:', error);
+                });
+              } else {
+                // 背景存在时，只更新样式参数
+                if (typeof updateBackgroundOpacity === 'function') {
+                  updateBackgroundOpacity();
+                }
+                if (typeof addContentTransparencyStyles === 'function') {
+                  addContentTransparencyStyles();
+                }
+              }
+            }
+          } else {
+            // 移除背景
+            const bg = document.querySelector('#weibo-blur-background');
+            if (bg) {
+              bg.remove();
+            }
+            
+            // 移除内容半透明样式
+            const transparencyStyle = document.getElementById('weibo-background-transparency-style');
+            if (transparencyStyle) {
+              transparencyStyle.remove();
+            }
+            
+            console.log('[微博增强] 背景功能已禁用，相关样式已清理');
+          }
+          sendResponse({ success: true });
+        }).catch(error => {
+          console.error('[微博增强] 背景设置更新失败:', error);
+          sendResponse({ success: false, error: error.message });
+        });
+        return true;
+        
+      case 'getConfigStatus':
+        // 返回当前配置状态
+        try {
+          const response = {
+            success: true,
+            storageInitialized: typeof widescreenStore !== 'undefined' && typeof backgroundStore !== 'undefined',
+            widescreenEnabled: widescreenStore ? widescreenStore.enabled : false,
+            backgroundEnabled: backgroundStore ? backgroundStore.enabled : false,
+            userOverride: userOverride || false
+          };
+          sendResponse(response);
+        } catch (error) {
+          console.error('[微博增强] 获取配置状态失败:', error);
+          sendResponse({ success: false, error: error.message });
+        }
+        return true;
+        
+      default:
+        console.warn('[微博增强] 未识别的消息类型:', message.action);
+        sendResponse({ success: false, error: '未识别的消息类型' });
+        return true;
+    }
+    
+  } catch (error) {
+    console.error('[微博增强] 处理消息时发生错误:', error);
+    sendResponse({ success: false, error: error.message });
+    return true;
   }
-    sendResponse({success: true});
 });

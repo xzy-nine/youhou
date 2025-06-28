@@ -225,10 +225,17 @@ chrome.runtime.onStartup.addListener(async () => {
 
 // 处理来自内容脚本的消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log('[微博增强后台] 收到消息:', message);
+  
   // 获取设置
   if (message.action === 'getSettings') {
     chrome.storage.local.get(null, (result) => {
-      sendResponse(result);
+      if (chrome.runtime.lastError) {
+        console.error('[微博增强后台] 获取设置失败:', chrome.runtime.lastError);
+        sendResponse({ success: false, error: chrome.runtime.lastError.message });
+      } else {
+        sendResponse(result);
+      }
     });
     return true; // 表示将异步发送响应
   }
@@ -236,37 +243,92 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // 更新设置
   if (message.action === 'updateSettings') {
     chrome.storage.local.set(message.settings, () => {
-      sendResponse({ success: true });
+      if (chrome.runtime.lastError) {
+        console.error('[微博增强后台] 更新设置失败:', chrome.runtime.lastError);
+        sendResponse({ success: false, error: chrome.runtime.lastError.message });
+      } else {
+        sendResponse({ success: true });
+      }
     });
-    return true;  }
+    return true;
+  }
   
   // 主题变更消息处理
   if (message.action === 'themeChanged') {
-    console.log('[微博增强] 收到主题变更消息:', message);
+    console.log('[微博增强后台] 收到主题变更消息:', message);
+    
     // 更新存储中的主题设置
-    chrome.storage.local.set({
+    const themeData = {
       userOverride: message.userOverride,
-      userThemeMode: message.userThemeMode
-    }, () => {
-      console.log('[微博增强] 主题设置已同步到存储');
+      userThemeMode: message.userThemeMode || message.isDark
+    };
+    
+    chrome.storage.local.set(themeData, () => {
+      if (chrome.runtime.lastError) {
+        console.error('[微博增强后台] 主题设置保存失败:', chrome.runtime.lastError);
+        sendResponse({ success: false, error: chrome.runtime.lastError.message });
+      } else {
+        console.log('[微博增强后台] 主题设置已同步到存储');
+        
+        // 更新扩展图标（可选）
+        const iconPath = (message.userThemeMode || message.isDark) ? 'icons/icon19.png' : 'icons/icon19.png';
+        
+        chrome.action.setIcon({
+          path: {
+            '16': 'icons/icon16.png',
+            '19': iconPath,
+            '32': 'icons/icon32.png',
+            '48': 'icons/icon48.png'
+          }
+        }).catch(err => {
+          console.log('[微博增强后台] 设置图标失败（正常）:', err);
+        });
+        
+        sendResponse({ success: true });
+      }
     });
     return true;
   }
   
   // 主题重置消息处理
   if (message.action === 'themeReset') {
-    console.log('[微博增强] 收到主题重置消息:', message);
-    // 重置存储中的主题设置
+    console.log('[微博增强后台] 收到主题重置消息:', message);
+    
     chrome.storage.local.set({
       userOverride: false,
       userThemeMode: null
     }, () => {
-      console.log('[微博增强] 主题设置已重置并同步到存储');
+      if (chrome.runtime.lastError) {
+        console.error('[微博增强后台] 主题重置失败:', chrome.runtime.lastError);
+        sendResponse({ success: false, error: chrome.runtime.lastError.message });
+      } else {
+        console.log('[微博增强后台] 主题设置已重置并同步到存储');
+        sendResponse({ success: true });
+      }
     });
     return true;
   }
   
-    // 显示通知
+  // 请求主题同步
+  if (message.type === 'requestThemeSync') {
+    chrome.storage.local.get(['userOverride', 'userThemeMode'], (result) => {
+      if (chrome.runtime.lastError) {
+        console.error('[微博增强后台] 获取主题设置失败:', chrome.runtime.lastError);
+        sendResponse({ success: false, error: chrome.runtime.lastError.message });
+      } else {
+        const themeMode = result.userOverride ? result.userThemeMode : 
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        sendResponse({ 
+          success: true, 
+          themeMode: themeMode,
+          userOverride: result.userOverride 
+        });
+      }
+    });
+    return true;
+  }
+  
+  // 显示通知
   if (message.action === 'showNotification') {
     chrome.notifications.create({
       type: 'basic',
@@ -274,8 +336,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       title: message.title || '微博增强',
       message: message.message,
       priority: message.priority || 0
+    }, (notificationId) => {
+      if (chrome.runtime.lastError) {
+        console.error('[微博增强后台] 创建通知失败:', chrome.runtime.lastError);
+        sendResponse({ success: false, error: chrome.runtime.lastError.message });
+      } else {
+        sendResponse({ success: true, notificationId: notificationId });
+      }
     });
-    sendResponse({ success: true });
     return true;
   }
   
@@ -284,60 +352,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     fetchBingImageInBackground().then(result => {
       sendResponse(result);
     }).catch(error => {
-      console.error('[微博增强] 获取必应图片失败:', error);
+      console.error('[微博增强后台] 获取必应图片失败:', error);
       sendResponse({ success: false, error: error.message });
     });
     return true;
   }
   
-  // 主题变更消息处理
-  if (message.action === 'themeChanged') {
-    console.log('[微博增强] 收到主题变更消息:', message);
-    // 更新存储中的主题设置
-    chrome.storage.local.set({
-      userOverride: message.userOverride,
-      userThemeMode: message.userThemeMode
-    }, () => {
-      console.log('[微博增强] 主题设置已同步到存储');
+  // 清除缓存
+  if (message.action === 'clearCache') {
+    clearCacheData().then(success => {
+      sendResponse({ success: success });
+    }).catch(error => {
+      console.error('[微博增强后台] 清除缓存失败:', error);
+      sendResponse({ success: false, error: error.message });
     });
     return true;
   }
   
-  // 主题重置消息处理
-  if (message.action === 'themeReset') {
-    console.log('[微博增强] 收到主题重置消息:', message);
-    // 重置存储中的主题设置
-    chrome.storage.local.set({
-      userOverride: false,
-      userThemeMode: null
-    }, () => {
-      console.log('[微博增强] 主题设置已重置并同步到存储');
-    });
-    return true;
-  }
-  
-  // 处理主题变化消息
-  if (message.action === 'themeChanged') {
-    console.log(`[微博增强后台] 收到主题变化消息: ${message.isDark ? '深色' : '浅色'}`);
-    
-    // 更新扩展图标（如果需要的话）
-    const iconPath = message.isDark ? 'icons/icon19.png' : 'icons/icon19.png'; // 可以设置不同的图标
-    
-    chrome.action.setIcon({
-      path: {
-        '16': 'icons/icon16.png',
-        '19': iconPath,
-        '32': 'icons/icon32.png',
-        '48': 'icons/icon48.png'
-      }
-    }).catch(err => {
-      // 忽略设置图标失败的错误
-      console.log('[微博增强后台] 设置图标失败（正常）:', err);
-    });
-    
-    sendResponse({ success: true });
-    return false;
-  }
+  // 如果没有匹配的消息类型，返回false表示不处理
+  console.warn('[微博增强后台] 未识别的消息类型:', message);
+  return false;
 });
 
 // 必应图片获取功能

@@ -727,11 +727,17 @@ async function clearBingImageCache() {
 function clearBingImageCache() {
     // 向后台脚本发送清除缓存的消息
     chrome.runtime.sendMessage({ action: 'clearCache' }, (response) => {
+        if (chrome.runtime.lastError) {
+            console.error('[微博背景] 清除缓存消息发送失败:', chrome.runtime.lastError);
+            simpleNotify('清除缓存失败：' + chrome.runtime.lastError.message);
+            return;
+        }
+        
         if (response && response.success) {
             console.log('[微博背景] 必应图片缓存已清除');
             simpleNotify('必应图片缓存已清除');
         } else {
-            console.error('[微博背景] 清除缓存失败');
+            console.error('[微博背景] 清除缓存失败:', response);
             simpleNotify('清除缓存失败');
         }
     });
