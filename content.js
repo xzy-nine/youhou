@@ -169,7 +169,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('[微博增强] Content 收到消息:', message);
   
   try {
-    switch(message.action) {
+    switch(message.action || message.type) {
+      case 'getSystemTheme':
+        // 后台脚本请求获取系统主题偏好
+        try {
+          const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          console.log('[微博增强] 系统主题检测:', isDark ? '深色' : '浅色');
+          sendResponse({ isDark: isDark });
+        } catch (error) {
+          console.error('[微博增强] 系统主题检测失败:', error);
+          sendResponse({ isDark: false });
+        }
+        return true;
+        
       case 'requestThemeSync':
         // 弹出页请求主题状态同步
         console.log('[微博增强] 收到主题同步请求');
@@ -200,12 +212,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (message.forceReset) {
           console.log('[微博增强] 执行主题重置');
           userOverride = false;
-          userThemeMode = null;
+          userThemeMode = false;
           
           // 异步保存重置状态
           Promise.all([
             chromeStorage.setValue('userOverride', false),
-            chromeStorage.setValue('userThemeMode', null)
+            chromeStorage.setValue('userThemeMode', false)
           ]).then(() => {
             console.log('[微博增强] 主题重置状态已保存');
             

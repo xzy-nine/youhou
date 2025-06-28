@@ -475,12 +475,12 @@ function setupMessageListener() {
         
         // 更新用户设置
         userSettings.userOverride = false;
-        userSettings.userThemeMode = null;
+        userSettings.userThemeMode = false;
         
         // 保存到存储
         chrome.storage.local.set({
           userOverride: false,
-          userThemeMode: null
+          userThemeMode: false
         }, () => {
           if (chrome.runtime.lastError) {
             console.error('[微博增强 Popup] 保存主题重置失败:', chrome.runtime.lastError);
@@ -629,12 +629,12 @@ async function enhancedThemeReset() {
     
     // 重置用户设置状态
     userSettings.userOverride = false;
-    userSettings.userThemeMode = null;
+    userSettings.userThemeMode = false;
     
     // 异步保存到存储，确保同步
     await Promise.all([
       new Promise(resolve => chrome.storage.local.set({ userOverride: false }, resolve)),
-      new Promise(resolve => chrome.storage.local.set({ userThemeMode: null }, resolve))
+      new Promise(resolve => chrome.storage.local.set({ userThemeMode: false }, resolve))
     ]);
     
     // 获取系统主题偏好
@@ -651,7 +651,7 @@ async function enhancedThemeReset() {
     sendMessageToContentScript({
       action: 'updateTheme',
       userOverride: false,
-      userThemeMode: null,
+      userThemeMode: false,
       systemTheme: prefersDark,
       forceSync: true,
       forceReset: true

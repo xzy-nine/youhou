@@ -43,8 +43,8 @@ function setupThemeSystem() {
       lastKnownTheme = systemDarkMode;
     } else {
       // 如果用户手动设置了主题，尊重用户设置
-      // 读取上次保存的用户偏好，如果没有则使用当前网站模式
-      const savedMode = (userThemeMode !== null) ? userThemeMode : getCurrentWebsiteMode();
+      // 读取上次保存的用户偏好，如果用户覆盖设置则使用用户设置，否则使用当前网站模式
+      const savedMode = userOverride ? userThemeMode : getCurrentWebsiteMode();
       console.log(`用户手动设置为${savedMode ? '深色' : '浅色'}模式，保持不变`);
       
       // 确保当前主题与用户设置一致

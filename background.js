@@ -144,7 +144,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     
     // 主题设置
     userOverride: false,
-    userThemeMode: null
+    userThemeMode: false
   };
   
   // 只在首次安装或重新安装时设置默认配置，更新时保留用户配置
@@ -296,7 +296,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     chrome.storage.local.set({
       userOverride: false,
-      userThemeMode: null
+      userThemeMode: false
     }, () => {
       if (chrome.runtime.lastError) {
         console.error('[微博增强后台] 主题重置失败:', chrome.runtime.lastError);
@@ -316,8 +316,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         console.error('[微博增强后台] 获取主题设置失败:', chrome.runtime.lastError);
         sendResponse({ success: false, error: chrome.runtime.lastError.message });
       } else {
-        const themeMode = result.userOverride ? result.userThemeMode : 
-          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        let themeMode;
+        if (result.userOverride) {
+          themeMode = result.userThemeMode;
+        } else {
+          // 在 Service Worker 中，无法直接检测系统主题偏好
+          // 我们通过向 content script 发送消息来获取系统主题
+          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs[0]) {
+              chrome.tabs.sendMessage(tabs[0].id, { type: 'getSystemTheme' }, (response) => {
+                const systemTheme = response && response.isDark !== undefined ? response.isDark : false;
+                sendResponse({ 
+                  success: true, 
+                  themeMode: systemTheme,
+                  userOverride: result.userOverride 
+                });
+              });
+            } else {
+              // 如果没有活动标签页，默认使用浅色主题
+              sendResponse({ 
+                success: true, 
+                themeMode: false,
+                userOverride: result.userOverride 
+              });
+            }
+          });
+          return true; // 保持消息通道打开，等待异步响应
+        }
+        
         sendResponse({ 
           success: true, 
           themeMode: themeMode,

@@ -89,7 +89,7 @@ const backgroundStore = {
 
 // 主题相关设置
 let userOverride = false;
-let userThemeMode = null;
+let userThemeMode = false;
 
 // 初始化获取所有存储数据
 async function initStorage() {
@@ -130,7 +130,7 @@ async function initStorage() {
     
     // 主题设置 - 使用存储值或默认值
     userOverride = allSettings.userOverride !== undefined ? allSettings.userOverride : false;
-    userThemeMode = allSettings.userThemeMode !== undefined ? allSettings.userThemeMode : null;
+    userThemeMode = allSettings.userThemeMode !== undefined ? allSettings.userThemeMode : false;
     
     console.log('[微博增强] 存储初始化完成', { 
       widescreenStore, 
@@ -227,7 +227,7 @@ async function validateAndRecoverConfig() {
       background_content_blur: 1,
       background_notify_enabled: true,
       userOverride: false,
-      userThemeMode: null
+      userThemeMode: false
     };
     
     const missingConfigs = {};
@@ -242,7 +242,11 @@ async function validateAndRecoverConfig() {
         const storedValue = allData[key];
         const expectedType = typeof defaultValue;
         
-        if (typeof storedValue !== expectedType && storedValue !== null) {
+        // 特殊处理 userThemeMode：如果存储的是 null，需要转换为 false
+        if (key === 'userThemeMode' && storedValue === null) {
+          console.warn(`[微博增强] 配置项 ${key} 从 null 转换为 false`);
+          corruptedConfigs[key] = defaultValue;
+        } else if (typeof storedValue !== expectedType && storedValue !== null) {
           console.warn(`[微博增强] 配置项 ${key} 类型不匹配，期望 ${expectedType}，实际 ${typeof storedValue}`);
           corruptedConfigs[key] = defaultValue;
         }
