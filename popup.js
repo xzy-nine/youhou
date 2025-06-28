@@ -19,6 +19,29 @@ let userSettings = {
   background_notify_enabled: false
 };
 
+// 显示刷新提示
+function showRefreshNotice() {
+  const notice = document.getElementById('refresh-notice');
+  if (notice) {
+    notice.style.display = 'block';
+    // 3秒后自动隐藏
+    setTimeout(() => {
+      notice.style.display = 'none';
+    }, 5000);
+  }
+}
+
+// 刷新当前标签页
+function refreshCurrentTab() {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0]) {
+      chrome.tabs.reload(tabs[0].id);
+      // 关闭弹出窗口
+      window.close();
+    }
+  });
+}
+
 // 防抖更新UI函数
 let updateUITimeout = null;
 function debouncedUpdateUI() {
@@ -284,6 +307,7 @@ function setupEventListeners() {
       chrome.storage.local.set({ background_type: 'bing' });
       document.getElementById('custom-url-container').style.display = 'none';
       sendMessageToContentScript({ action: 'updateBackground' });
+      showRefreshNotice(); // 显示刷新提示
     }
   });
   
@@ -293,6 +317,7 @@ function setupEventListeners() {
       chrome.storage.local.set({ background_type: 'gradient' });
       document.getElementById('custom-url-container').style.display = 'none';
       sendMessageToContentScript({ action: 'updateBackground' });
+      showRefreshNotice(); // 显示刷新提示
     }
   });
   
@@ -302,6 +327,7 @@ function setupEventListeners() {
       chrome.storage.local.set({ background_type: 'custom' });
       document.getElementById('custom-url-container').style.display = 'block';
       sendMessageToContentScript({ action: 'updateBackground' });
+      showRefreshNotice(); // 显示刷新提示
     }
   });
   
@@ -354,6 +380,11 @@ function setupEventListeners() {
       widescreen_notify_enabled: e.target.checked,
       background_notify_enabled: e.target.checked
     });
+  });
+
+  // 刷新按钮事件监听器
+  document.getElementById('refresh-btn').addEventListener('click', () => {
+    refreshCurrentTab();
   });
 }
 
