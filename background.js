@@ -54,6 +54,16 @@ async function clearCacheData() {
 // 扩展启用时的处理 - 包含配置验证
 chrome.management.onEnabled.addListener(async (info) => {
   if (info.id === chrome.runtime.id) {
+    // 检查是否为浏览器重启
+    const { _weiboProStartup } = await new Promise(resolve => {
+      chrome.storage.local.get('_weiboProStartup', resolve);
+    });
+    if (_weiboProStartup) {
+      // 清除标记，不弹通知
+      await chrome.storage.local.remove('_weiboProStartup');
+      console.log('[微博增强] 启用事件由浏览器重启触发，不弹通知');
+      return;
+    }
     console.log('[微博增强] 扩展已启用，开始配置验证和缓存清理...');
     
     try {
@@ -106,14 +116,7 @@ chrome.management.onEnabled.addListener(async (info) => {
       console.error('[微博增强] 启用时处理失败:', error);
     }
     
-    // 显示通知
-    chrome.notifications.create({
-      type: 'basic',
-      iconUrl: 'icons/icon128.png',
-      title: '微博增强',
-      message: '扩展已启用，配置已验证，缓存已清理',
-      priority: 1
-    });
+    // 已删除扩展启用通知
   }
 });
 
@@ -151,54 +154,79 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   if (details.reason === 'install') {
     await chrome.storage.local.set(defaultSettings);
     console.log('[微博增强] 首次安装，已设置默认配置');
+    chrome.storage.local.set({ _weiboProVersion: chrome.runtime.getManifest().version });
+    // 已删除首次安装通知
   } else if (details.reason === 'update') {
     // 检查现有配置，只添加缺失的配置项
     const existingSettings = await new Promise(resolve => {
       chrome.storage.local.get(null, resolve);
     });
-    
     const missingSettings = {};
     for (const [key, value] of Object.entries(defaultSettings)) {
       if (!(key in existingSettings)) {
         missingSettings[key] = value;
       }
     }
-    
     if (Object.keys(missingSettings).length > 0) {
       await chrome.storage.local.set(missingSettings);
       console.log('[微博增强] 扩展更新，已添加缺失的配置项:', missingSettings);
     } else {
       console.log('[微博增强] 扩展更新，用户配置完整，无需添加默认配置');
     }
+    // 版本号提示
+    const manifest = chrome.runtime.getManifest();
+    const currentVersion = manifest.version;
+    const { _weiboProVersion: prevVersion } = await new Promise(resolve => {
+      chrome.storage.local.get('_weiboProVersion', resolve);
+    });
+    chrome.storage.local.set({ _weiboProVersion: currentVersion });
+    if (prevVersion && prevVersion !== currentVersion) {
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon128.png',
+        title: '微博增强已更新',
+        message: `版本已从 ${prevVersion} 升级到 ${currentVersion}`,
+        priority: 2
+      });
+    }
+    // 已删除"当前版本"通知
   } else {
     // 开发者模式重新加载等情况，检查并保留用户配置
     const existingSettings = await new Promise(resolve => {
       chrome.storage.local.get(null, resolve);
     });
-    
     if (Object.keys(existingSettings).length === 0) {
-      // 如果没有配置，设置默认配置
       await chrome.storage.local.set(defaultSettings);
       console.log('[微博增强] 重新加载，已设置默认配置');
     } else {
       console.log('[微博增强] 重新加载，保留现有用户配置:', existingSettings);
     }
+    // 版本号提示（开发者模式重载）
+    const manifest = chrome.runtime.getManifest();
+    const currentVersion = manifest.version;
+    const { _weiboProVersion: prevVersion } = await new Promise(resolve => {
+      chrome.storage.local.get('_weiboProVersion', resolve);
+    });
+    chrome.storage.local.set({ _weiboProVersion: currentVersion });
+    if (prevVersion && prevVersion !== currentVersion) {
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon128.png',
+        title: '微博增强已更新',
+        message: `版本已从 ${prevVersion} 升级到 ${currentVersion}`,
+        priority: 2
+      });
+    } else {
+      // 已删除开发者模式重载通知
+    }
   }
-  
-  // 显示安装成功的通知
-  chrome.notifications.create({
-    type: 'basic',
-    iconUrl: 'icons/icon128.png',
-    title: '微博增强已安装',
-    message: '微博增强扩展已成功安装，请访问微博网站体验增强功能。',
-    priority: 2
-  });
 });
 
 // 扩展启动时的处理
 chrome.runtime.onStartup.addListener(async () => {
   console.log('[微博增强] 扩展启动，开始验证配置完整性');
-  
+  // 标记本次是浏览器重启
+  await chrome.storage.local.set({ _weiboProStartup: true });
   try {
     // 获取现有配置
     const existingSettings = await new Promise(resolve => {
@@ -354,22 +382,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
   
-  // 显示通知
+  // 显示通知功能已删除（仅保留版本更新通知）
   if (message.action === 'showNotification') {
-    chrome.notifications.create({
-      type: 'basic',
-      iconUrl: 'icons/icon128.png',
-      title: message.title || '微博增强',
-      message: message.message,
-      priority: message.priority || 0
-    }, (notificationId) => {
-      if (chrome.runtime.lastError) {
-        console.error('[微博增强后台] 创建通知失败:', chrome.runtime.lastError);
-        sendResponse({ success: false, error: chrome.runtime.lastError.message });
-      } else {
-        sendResponse({ success: true, notificationId: notificationId });
-      }
-    });
+    // 通知功能已禁用
+    sendResponse({ success: false, error: '通知功能已禁用' });
     return true;
   }
   

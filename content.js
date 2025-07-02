@@ -40,12 +40,7 @@ async function initialize() {
             await applyBackground();
             console.log('[微博增强] 背景功能初始化完成');
             
-            // 如果启用了通知，显示成功消息
-            if (backgroundStore.enabled && backgroundStore.notify_enabled) {
-              setTimeout(() => {
-                simpleNotify('背景功能已激活');
-              }, 1000);
-            }
+            // 已删除背景功能激活通知
           } catch (error) {
             console.error('[微博增强] 背景应用失败:', error);
             // 重试一次
@@ -97,16 +92,14 @@ async function initialize() {
         }
       }, 1000);
       
-      // 显示通知
-      if (widescreenStore.notify_enabled) {
-        simpleNotify('微博增强功能已激活');
-      }    });
+      // 已删除功能激活通知
+    });
       // 启动成功日志
     console.log('%c[微博增强] 功能已激活', 'color: #28a745; font-weight: bold;');
     
   } catch (error) {
     console.error('[微博增强] 初始化失败:', error);
-    simpleNotify('微博增强功能初始化失败，请刷新页面重试');
+    // 已删除初始化失败通知
   }
 }
 
