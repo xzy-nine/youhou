@@ -1095,8 +1095,6 @@ function forceApplyContainerStyles() {
                     console.log(`[微博背景] 调整了容器背景色: ${bgColor} -> rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.5)`);
                 }
             }
-            
-            console.log(`[微博背景] 已应用样式到容器:`, container);
         }
     });
     
@@ -1173,8 +1171,6 @@ function reinforceBackgroundDisplay() {
     
     // 强化容器样式
     forceApplyContainerStyles();
-    
-    console.log('[微博背景] 背景显示已强化');
 }
 
 // 定期强化背景显示

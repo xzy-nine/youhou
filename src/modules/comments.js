@@ -8,9 +8,10 @@
 function setupCommentSystem() {
   // 添加评论悬浮窗样式
   addCommentModalStyles();
-    // 启动评论链接拦截
+  // 启动评论链接拦截
   interceptCommentLinks();
-  
+  // 启动URL变化监听和页面特征检测
+  setupPageDetection();
   // 设置主题变化监听
   setupCommentThemeListener();
 }
@@ -94,7 +95,12 @@ function showCommentModal(commentUrl, commentCount) {
   
   // 更新标题
   const title = modal.querySelector('.comment-modal-title');
-  title.textContent = '详情';
+  // 如果commentCount已经包含"评论"字样，直接使用；否则添加"评论"前缀
+  if (commentCount && commentCount !== '评论' && !commentCount.includes('评论')) {
+    title.textContent = `评论 ${commentCount}`;
+  } else {
+    title.textContent = '评论';
+  }
   
   // 确保使用正确的主题模式
   const commentModalElement = modal.querySelector('.comment-modal');
@@ -112,66 +118,73 @@ function showCommentModal(commentUrl, commentCount) {
   loadCommentContent(modal, commentUrl);
 }
 
+// 创建并配置iframe
+function createAndConfigureIframe(commentUrl, modal) {
+  const iframe = document.createElement('iframe');
+  iframe.className = 'comment-modal-iframe';
+  iframe.src = commentUrl;
+  
+  iframe.onload = function() {
+    // iframe加载完成后隐藏loading
+    const loadingDiv = modal.querySelector('.comment-modal-loading');
+    if (loadingDiv) {
+      loadingDiv.style.display = 'none';
+    }
+    
+    // 向iframe注入宽屏样式
+    try {
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+      if (iframeDoc && iframeDoc.head && widescreenStore.enabled) {
+        // 同步当前页面的主题模式到iframe
+        const currentWebsiteMode = getCurrentWebsiteMode();
+        if (currentWebsiteMode) {
+          iframeDoc.body.classList.add('woo-theme-dark');
+          iframeDoc.body.classList.remove('woo-theme-light');
+        } else {
+          iframeDoc.body.classList.add('woo-theme-light');
+          iframeDoc.body.classList.remove('woo-theme-dark');
+        }
+        
+        // 确保模态框也与当前主题匹配
+        const modalElement = iframe.closest('.comment-modal');
+        if (modalElement) {
+          modalElement.setAttribute('data-theme', currentWebsiteMode ? 'dark' : 'light');
+        }
+        
+        const style = iframeDoc.createElement('style');
+        style.id = 'widescreen-style';
+        style.textContent = weiboWidescreenCSS;
+        iframeDoc.head.appendChild(style);
+      }
+    } catch (error) {
+      console.log('无法向iframe注入样式（可能是跨域）:', error);
+    }
+  };
+  
+  iframe.onerror = function() {
+    const loadingDiv = modal.querySelector('.comment-modal-loading');
+    if (loadingDiv) {
+      loadingDiv.textContent = '加载评论失败，请稍后重试';
+    }
+  };
+  
+  return iframe;
+}
+
 // 加载评论内容
 function loadCommentContent(modal, commentUrl) {
   const contentDiv = modal.querySelector('.comment-modal-content');
-  const loadingDiv = contentDiv.querySelector('.comment-modal-loading');
   
   try {
-    // 创建iframe元素
-    const iframe = document.createElement('iframe');
-    iframe.className = 'comment-modal-iframe';
-    iframe.src = commentUrl;
-    
-    iframe.onload = function() {
-      // iframe加载完成后隐藏loading
-      if (loadingDiv) {
-        loadingDiv.style.display = 'none';
-      }
-      
-      // 向iframe注入宽屏样式
-      try {
-        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-        if (iframeDoc && iframeDoc.head && widescreenStore.enabled) {
-          // 同步当前页面的主题模式到iframe
-          const currentWebsiteMode = getCurrentWebsiteMode();
-          if (currentWebsiteMode) {
-            iframeDoc.body.classList.add('woo-theme-dark');
-            iframeDoc.body.classList.remove('woo-theme-light');
-          } else {
-            iframeDoc.body.classList.add('woo-theme-light');
-            iframeDoc.body.classList.remove('woo-theme-dark');
-          }
-          
-          // 确保模态框也与当前主题匹配
-          const modal = iframe.closest('.comment-modal');
-          if (modal) {
-            modal.setAttribute('data-theme', currentWebsiteMode ? 'dark' : 'light');
-          }
-          
-          const style = iframeDoc.createElement('style');
-          style.id = 'widescreen-style';
-          style.textContent = weiboWidescreenCSS;
-          iframeDoc.head.appendChild(style);
-          
-          console.log('已向评论iframe注入宽屏样式');
-        }
-      } catch (error) {
-        console.log('无法向iframe注入样式（可能是跨域）:', error);
-      }
-    };
-    
-    iframe.onerror = function() {
-      if (loadingDiv) {
-        loadingDiv.textContent = '加载评论失败，请稍后重试';
-      }
-    };
+    // 使用统一的iframe创建和配置函数
+    const iframe = createAndConfigureIframe(commentUrl, modal);
     
     // 将iframe添加到内容区域
     contentDiv.appendChild(iframe);
     
   } catch (error) {
     console.error('创建iframe失败:', error);
+    const loadingDiv = contentDiv.querySelector('.comment-modal-loading');
     if (loadingDiv) {
       loadingDiv.textContent = '加载评论失败，请稍后重试';
     }
@@ -356,11 +369,133 @@ function updateAllCommentModalsTheme(isDark) {
         if (iframeDoc && iframeDoc.body) {
           iframeDoc.body.classList.remove('woo-theme-dark', 'woo-theme-light');
           iframeDoc.body.classList.add(isDark ? 'woo-theme-dark' : 'woo-theme-light');
-          console.log(`[微博评论] 已更新iframe主题`);
         }
       } catch (error) {
         console.log('[微博评论] 无法更新iframe主题（可能是跨域）:', error);
       }
     }
   });
+}
+
+// 设置URL变化监听和页面特征检测
+function setupPageDetection() {
+  // 定义多个可能的目标按钮选择器
+  const targetButtonSelectors = [
+    "#app > div.woo-box-flex.woo-box-column.Frame_wrap_3g67Q > div.woo-box-flex.Frame_content_3XrxZ.Frame_noside1_3M1rh > div:nth-child(2) > main > div > div > div.Bar_main_R1N5v.Bar_card_3Jk5b > div > div.woo-box-flex.woo-box-alignCenter.Bar_left_2J3kl.Bar_hand_2VAG1",
+    "#app > div.woo-box-flex.woo-box-column.Frame_wrap_3g67Q > div.woo-box-flex.Frame_content_3XrxZ.Frame_noside1_3M1rh.Frame_noside2_1lBwY > div:nth-child(2) > main > div > div > div.Bar_main_R1N5v.Bar_card_3Jk5b > div > div.woo-box-flex.woo-box-alignCenter.Bar_left_2J3kl.Bar_hand_2VAG1",
+    // 更简化的选择器，提高匹配成功率
+    "div.Bar_left_2J3kl.Bar_hand_2VAG1",
+    "div.woo-box-flex.woo-box-alignCenter.Bar_left_2J3kl.Bar_hand_2VAG1",
+    // 通过类名组合匹配
+    ".Bar_left_2J3kl.Bar_hand_2VAG1",
+    ".woo-box-flex.woo-box-alignCenter.Bar_left_2J3kl.Bar_hand_2VAG1"
+  ];
+  
+  // 检查当前页面是否已经是目标页面
+  setTimeout(() => {
+    checkForTargetButton(targetButtonSelectors);
+  }, 1000);
+  
+  // 监听DOM变化
+  const observer = new MutationObserver(() => {
+    checkForTargetButton(targetButtonSelectors);
+  });
+  
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+  
+  console.log('[页面检测] 页面检测系统已启动，监听选择器:', targetButtonSelectors.length, '个');
+}
+
+// 检查页面是否包含目标按钮
+function checkForTargetButton(selectors) {
+  // 添加防抖，避免频繁检测
+  if (checkForTargetButton.debounceTimer) {
+    clearTimeout(checkForTargetButton.debounceTimer);
+  }
+  
+  checkForTargetButton.debounceTimer = setTimeout(() => {
+    let targetButton = null;
+    let matchedSelector = '';
+    
+    // 尝试所有选择器
+    for (const selector of selectors) {
+      try {
+        targetButton = document.querySelector(selector);
+        if (targetButton) {
+          matchedSelector = selector;
+          break;
+        }
+      } catch (error) {
+        console.warn('[页面检测] 选择器语法错误:', selector, error);
+      }
+    }
+    
+    // 如果没有找到，尝试更宽泛的搜索
+    if (!targetButton) {
+      // 通过类名查找
+      const candidates = document.querySelectorAll('.Bar_left_2J3kl, .Bar_hand_2VAG1');
+      for (const candidate of candidates) {
+        if (candidate.classList.contains('Bar_left_2J3kl') && candidate.classList.contains('Bar_hand_2VAG1')) {
+          targetButton = candidate;
+          matchedSelector = '通过类名组合找到';
+          break;
+        }
+      }
+    }
+    
+    if (targetButton) {
+      const currentUrl = window.location.href;
+      console.log('[页面检测] 检测到目标按钮！', {
+        selector: matchedSelector,
+        currentUrl: currentUrl,
+        element: targetButton
+      });
+      
+      // 检查是否已经在iframe中（避免重复处理）
+      if (window.self !== window.top) {
+        console.log('[页面检测] 当前已在iframe中，跳过处理');
+        return;
+      }
+      
+      // 检查是否已经有评论模态框打开
+      const existingModal = document.querySelector('.comment-modal-overlay');
+      if (existingModal) {
+        console.log('[页面检测] 评论模态框已存在，跳过处理');
+        return;
+      }
+      
+      // 添加一个标记，避免重复处理同一个页面
+      if (window.weiboPageIntercepted) {
+        console.log('[页面检测] 页面已被拦截处理过，跳过');
+        return;
+      }
+      window.weiboPageIntercepted = true;
+      
+      console.log('[页面检测] 将当前页面转移到iframe中打开');
+      
+      // 显示评论模态框并加载当前页面
+      showCommentModal(currentUrl, '评论');
+      
+      if (widescreenStore.notify_enabled && window.simpleNotify) {
+        window.simpleNotify('检测到详情页面，已转移到悬浮窗中显示');
+      }
+      
+      // 可选：返回上一页或首页
+      setTimeout(() => {
+        if (window.history.length > 1) {
+          window.history.back();
+        } else {
+          // 如果没有历史记录，跳转到首页
+          window.location.href = '/';
+        }
+        // 清除拦截标记，允许下次拦截
+        setTimeout(() => {
+          window.weiboPageIntercepted = false;
+        }, 1000);
+      }, 500);
+    }
+  }, 500); // 防抖延迟500ms
 }

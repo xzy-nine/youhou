@@ -48,6 +48,8 @@ const commentModalCSS = `
     overflow: hidden;
     transform: translateX(-100%);
     transition: transform 0.3s ease;
+    display: flex;
+    flex-direction: column;
 }
 
 .comment-modal-overlay.show .comment-modal {
@@ -63,6 +65,12 @@ const commentModalCSS = `
     background: var(--header-bg, #f7f9fa);
     border-radius: 0 45px 0 0;
     min-height: 40px;
+    height: 64px;    /* 固定高度，确保稳定显示 */
+    flex-shrink: 0;  /* 防止被压缩 */
+    z-index: 1000;   /* 大幅提高z-index确保在最上方 */
+    position: relative;
+    order: -1;       /* 确保在flex布局中排在第一位 */
+    box-sizing: border-box;
 }
 
 .comment-modal-title {
@@ -96,9 +104,13 @@ const commentModalCSS = `
 
 .comment-modal-content {
     padding: 0;
-    height: calc(100vh - 100px);
+    height: calc(100% - 64px);  /* 精确计算减去header的固定高度 */
     overflow: hidden;
     position: relative;
+    flex: 1;  /* 占用剩余空间 */
+    z-index: 1;  /* 确保在header下方 */
+    order: 1;    /* 确保在flex布局中排在header后面 */
+    box-sizing: border-box;
 }
 
 .comment-modal-iframe {
@@ -106,6 +118,9 @@ const commentModalCSS = `
     height: 100%;
     border: none;
     background: var(--bg-color, #ffffff);
+    display: block;
+    position: relative;
+    z-index: 1;  /* 确保不会覆盖header */
 }
 
 .comment-modal-loading {
@@ -121,7 +136,7 @@ const commentModalCSS = `
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1;
+    z-index: 10;  /* 提高z-index，但仍低于header */
 }
 
 /* 深色模式样式 */
