@@ -4,16 +4,16 @@
   "description": "微博增强功能：智能主题同步、完美跟随原生主题切换、弹出页查看更多评论、页面宽屏显示、自定义背景图片",
   "author": "xzy-nine",
   "icons": {
-    "16": "icons/icon16.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
+    "16": "icons/favicon.png",
+    "48": "icons/favicon.png",
+    "128": "icons/favicon.png"
   },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
-      "16": "icons/icon16.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
+      "16": "icons/favicon.png",
+      "48": "icons/favicon.png",
+      "128": "icons/favicon.png"
     }
   },  "permissions": [
     "storage",

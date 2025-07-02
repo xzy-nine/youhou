@@ -183,7 +183,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     if (prevVersion && prevVersion !== currentVersion) {
       chrome.notifications.create({
         type: 'basic',
-        iconUrl: 'icons/icon128.png',
+        iconUrl: 'icons/favicon.png',
         title: '微博增强已更新',
         message: `版本已从 ${prevVersion} 升级到 ${currentVersion}`,
         priority: 2
@@ -211,7 +211,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     if (prevVersion && prevVersion !== currentVersion) {
       chrome.notifications.create({
         type: 'basic',
-        iconUrl: 'icons/icon128.png',
+        iconUrl: 'icons/favicon.png',
         title: '微博增强已更新',
         message: `版本已从 ${prevVersion} 升级到 ${currentVersion}`,
         priority: 2
@@ -299,14 +299,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         console.log('[微博增强后台] 主题设置已同步到存储');
         
         // 更新扩展图标（可选）
-        const iconPath = (message.userThemeMode || message.isDark) ? 'icons/icon19.png' : 'icons/icon19.png';
-        
+        const iconPath = 'icons/favicon.png';
         chrome.action.setIcon({
           path: {
-            '16': 'icons/icon16.png',
-            '19': iconPath,
-            '32': 'icons/icon32.png',
-            '48': 'icons/icon48.png'
+            '16': 'icons/favicon.png',
+            '19': 'icons/favicon.png',
+            '32': 'icons/favicon.png',
+            '48': 'icons/favicon.png'
           }
         }).catch(err => {
           console.log('[微博增强后台] 设置图标失败（正常）:', err);
