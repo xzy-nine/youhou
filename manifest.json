@@ -28,7 +28,9 @@
     "https://api.kdcc.cn/*"
   ],"content_scripts": [
     {
-      "matches": ["https://*.weibo.com/*"],      "js": [
+      "matches": ["https://*.weibo.com/*"],
+      "exclude_matches": ["*://api.weibo.com/chat*"],
+      "js": [
         "src/utils/chrome-storage.js",
         "src/utils/notification.js",
         "src/utils/background-image.js",

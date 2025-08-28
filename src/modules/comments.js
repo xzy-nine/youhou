@@ -448,6 +448,26 @@ function checkForTargetButton(selectors) {
     
     if (targetButton) {
       const currentUrl = window.location.href;
+      const pathname = window.location.pathname;
+
+      // 定义URL黑名单，避免在这些页面上触发弹窗转换
+      const blacklist = [
+        '/u/',          // 用户主页
+        '/mygroups',    // 我的分组
+        '/n/',          // 个性化域名主页
+        '/search',      // 搜索页
+        '/settings',    // 设置页
+        '/messages'     // 消息页
+      ];
+
+      // 检查当前URL是否在黑名单中
+      for (const path of blacklist) {
+        if (pathname.startsWith(path)) {
+          console.log(`[页面检测] URL (${pathname}) 在黑名单中，跳过弹窗转换。`);
+          return;
+        }
+      }
+      
       console.log('[页面检测] 检测到目标按钮！', {
         selector: matchedSelector,
         currentUrl: currentUrl,
