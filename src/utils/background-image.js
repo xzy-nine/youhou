@@ -558,32 +558,51 @@ function addContentTransparencyStyles() {
     });
     
     const bgColor = isDarkMode ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`;
+    const higherBlurPixels = (backgroundStore.content_blur || 1) * 1.2;
     
-    console.log('[微博背景] 应用背景颜色:', bgColor);// 为微博内容添加半透明背景的CSS
+    console.log('[微博背景] 应用背景颜色:', bgColor);    // 为微博内容添加半透明背景的CSS - 优化选择器
     existingStyle.textContent = `
-        /* 主要内容容器 - 优先针对微博文章 */
+        /* 主要内容容器 - 优化和合并选择器 */
+        #__sidebar > div > div:nth-child(2) > div > div > div:nth-child(2),
         article,
-        #scroller > div.vue-recycle-scroller__item-wrapper > div > div > article,
-        #scroller > div.vue-recycle-scroller__item-wrapper > div:nth-child(n) > div > article {
+        #__sidebar > div > div:nth-child(2) > div > div > div:nth-child(3),
+        #scroller > div.vue-recycle-scroller__item-wrapper > div:nth-child(5) > div > article > div:nth-child(3) > div.Feed_box_3fswx > div:nth-child(3),
+        .vue-recycle-scroller__item-view article,
+        .Frame_side_3G0Bf > div > div,
+        .Card_wrap_2ibWe.Home_publishCard_Ed7g0,
+        .hotBand > div {
             background-color: ${bgColor} !important;
             backdrop-filter: blur(${blurPixels}px) !important;
             border-radius: 8px !important;
             margin: 5px 0 !important;
             padding: 10px !important;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
+            transition: backdrop-filter 0.3s ease, background-color 0.3s ease !important;
+        }
+
+        /* 高模糊度特殊规则 - 优化选择器 */
+        .cardHotSearch_tab_24u_o {
+            background-color: ${bgColor} !important;
+            backdrop-filter: blur(${higherBlurPixels}px) !important;
+            border-radius: 8px !important;
+            margin: 5px 0 !important;
+            padding: 10px !important;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
             transition: backdrop-filter 0.3s ease, background-color 0.3s ease !important;
         }
         
-        /* 确保内部内容透明 */
+        /* 确保内部内容透明 - 优化选择器 */
         article .wbpro-feed-content,
         article div[class*="feed-content"],
-        article div[class*="Feed_body"] > div {
+        article div[class*="Feed_body"] > div,
+        .Frame_side_3G0Bf button {
             background-color: transparent !important;
             box-shadow: none !important;
             border-radius: 0 !important;
-        }        /* 确保页面主容器有正确的z-index - 移除过度强制的设置 */
+        }
+
+        /* 确保页面主容器有正确的z-index - 移除过度强制的设置 */
         #app,
-        #app > div:not(.woo-modal-wrap),
         body,
         main,
         [role="main"],
@@ -595,9 +614,7 @@ function addContentTransparencyStyles() {
         
         /* 确保弹窗有更高的z-index */
         .woo-modal-wrap,
-        .woo-modal-main,
-        #app > div.woo-modal-wrap,
-        #app > div.woo-box-flex.woo-box-alignCenter.woo-box-justifyCenter.woo-modal-wrap {
+        .woo-modal-main {
             z-index: 9999 !important;
             position: fixed !important;
         }
