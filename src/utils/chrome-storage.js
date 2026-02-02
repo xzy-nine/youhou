@@ -22,9 +22,8 @@ const chromeStorage = {
   // 清理缓存数据，保留配置
   async clearCacheKeepConfig() {
     const configKeys = [
-      'widescreen_enabled',
-      'widescreen_loose', 
-      'widescreen_notify_enabled',
+      'layoutEditor_config',
+      'customWidescreenStyles',
       'background_enabled',
       'background_type',
       'background_url',
@@ -68,13 +67,6 @@ const chromeStorage = {
   }
 };
 
-// 宽屏设置存储
-const widescreenStore = {
-  enabled: true,
-  loose: false,
-  notify_enabled: false
-};
-
 // 背景设置存储
 const backgroundStore = {
   enabled: false,
@@ -102,10 +94,8 @@ async function initStorage() {
     });
     
     console.log('[微博增强] 存储初始化 - 原始设置:', allSettings);
-      // 宽屏设置 - 使用存储值或默认值
-    widescreenStore.enabled = allSettings.widescreen_enabled !== undefined ? allSettings.widescreen_enabled : true;
-    widescreenStore.loose = allSettings.widescreen_loose !== undefined ? allSettings.widescreen_loose : false;
-    widescreenStore.notify_enabled = allSettings.widescreen_notify_enabled !== undefined ? allSettings.widescreen_notify_enabled : false;    // 背景设置 - 使用存储值或默认值
+    
+    // 背景设置 - 使用存储值或默认值
     backgroundStore.enabled = allSettings.background_enabled !== undefined ? allSettings.background_enabled : false;
     backgroundStore.type = allSettings.background_type || 'bing';
     backgroundStore.url = allSettings.background_url || '';
@@ -132,20 +122,16 @@ async function initStorage() {
     userOverride = allSettings.userOverride !== undefined ? allSettings.userOverride : false;
     userThemeMode = allSettings.userThemeMode !== undefined ? allSettings.userThemeMode : false;
     
-    console.log('[微博增强] 存储初始化完成', { 
-      widescreenStore, 
-      backgroundStore, 
-      userOverride, 
+    console.log('[微博增强] 存储初始化完成', {
+      backgroundStore,
+      userOverride,
       userThemeMode,
       totalKeys: Object.keys(allSettings).length
     });
-    
+
     // 如果某些关键配置不存在，保存默认值到存储（仅限缺失的项）
     const defaultsToSave = {};
-    
-    if (allSettings.widescreen_enabled === undefined) {
-      defaultsToSave.widescreen_enabled = widescreenStore.enabled;
-    }
+
     if (allSettings.background_enabled === undefined) {
       defaultsToSave.background_enabled = backgroundStore.enabled;
     }
@@ -163,13 +149,6 @@ async function initStorage() {
     console.error('[微博增强] 存储初始化失败:', error);
     return false;
   }
-}
-
-// 保存宽屏配置到存储
-function saveWidescreenConfig() {
-  chromeStorage.setValue('widescreen_enabled', widescreenStore.enabled);
-  chromeStorage.setValue('widescreen_loose', widescreenStore.loose);
-  chromeStorage.setValue('widescreen_notify_enabled', widescreenStore.notify_enabled);
 }
 
 // 保存背景配置

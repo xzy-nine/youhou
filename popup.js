@@ -5,10 +5,7 @@ let userSettings = {
   // 主题设置
   userOverride: false,
   userThemeMode: false,
-  // 宽屏设置
-  widescreen_enabled: true,
-  widescreen_loose: false,
-  widescreen_notify_enabled: false,  // 背景设置
+  // 背景设置
   background_enabled: false,
   background_type: 'bing',
   background_url: '',
@@ -95,7 +92,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     userSettings = { ...userSettings, ...settings };
     
     // 验证关键配置项
-    const requiredKeys = ['widescreen_enabled', 'background_enabled', 'userOverride'];
+    const requiredKeys = ['background_enabled', 'userOverride'];
     const missingKeys = requiredKeys.filter(key => !(key in userSettings));
     
     if (missingKeys.length > 0) {
@@ -103,9 +100,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       // 为缺失的配置项设置默认值
       missingKeys.forEach(key => {
         switch(key) {
-          case 'widescreen_enabled':
-            userSettings.widescreen_enabled = true;
-            break;
           case 'background_enabled':
             userSettings.background_enabled = false;
             break;
@@ -161,19 +155,6 @@ function updateUI() {
     userOverride: userSettings.userOverride,
     userThemeMode: userSettings.userThemeMode
   });
-  
-  // 更新宽屏功能状态
-  const widescreenToggle = document.getElementById('widescreen-toggle');
-  const widescreenStatus = document.getElementById('widescreen-status');
-  const widescreenIndicator = widescreenToggle.querySelector('.status-indicator');
-    widescreenToggle.className = userSettings.widescreen_enabled ? 'active' : '';
-  widescreenStatus.textContent = userSettings.widescreen_enabled ? '已开启' : '已关闭';
-  widescreenIndicator.className = `status-indicator ${userSettings.widescreen_enabled ? 'on' : 'off'}`;
-  
-  const widescreenLooseCheckbox = document.getElementById('widescreen-loose');
-  if (widescreenLooseCheckbox) {
-    widescreenLooseCheckbox.checked = userSettings.widescreen_loose || false;
-  }
   
   // 更新主题按钮状态 - 使用 requestAnimationFrame 确保DOM更新
   requestAnimationFrame(() => {
@@ -271,24 +252,12 @@ function updateUI() {
   // 通知设置
   const notificationToggle = document.getElementById('notification-toggle');
   if (notificationToggle) {
-    notificationToggle.checked = userSettings.widescreen_notify_enabled || userSettings.background_notify_enabled || false;
+    notificationToggle.checked = userSettings.background_notify_enabled || false;
   }
 }
 
 function setupEventListeners() {
-  // 宽屏切换
-  document.getElementById('widescreen-toggle').addEventListener('click', () => {
-    userSettings.widescreen_enabled = !userSettings.widescreen_enabled;
-    chrome.storage.local.set({ widescreen_enabled: userSettings.widescreen_enabled });
-    updateUI();
-    sendMessageToContentScript({ action: 'updateWidescreen' });
-  });
-    document.getElementById('widescreen-loose').addEventListener('change', (e) => {
-    userSettings.widescreen_loose = e.target.checked;
-    chrome.storage.local.set({ widescreen_loose: e.target.checked });
-    sendMessageToContentScript({ action: 'updateWidescreen' });
-  });
-    // 主题切换 - 使用增强版本
+  // 主题切换 - 使用增强版本
   document.getElementById('theme-toggle').addEventListener('click', enhancedThemeToggle);
   
   // 重置主题跟随系统 - 使用增强版本
@@ -373,25 +342,37 @@ function setupEventListeners() {
     document.getElementById('content-blur-value').textContent = `${value}px`;
     chrome.storage.local.set({ background_content_blur: value });
     sendMessageToContentScript({ action: 'updateBackground' });
-  });// 通知设置 - 同时控制宽屏和背景通知
+  });
+  
+  // 通知设置
   document.getElementById('notification-toggle').addEventListener('change', (e) => {
-    userSettings.widescreen_notify_enabled = e.target.checked;
     userSettings.background_notify_enabled = e.target.checked;
     chrome.storage.local.set({ 
-      widescreen_notify_enabled: e.target.checked,
       background_notify_enabled: e.target.checked
     });
   });
 
-  // 选择宽屏容器按钮
-  document.getElementById('select-container-btn').addEventListener('click', async () => {
+  // 自定义布局编辑器按钮
+  document.getElementById('layout-editor-btn').addEventListener('click', async () => {
     const isWeibo = await isWeiboPage();
     if (isWeibo) {
-      sendMessageToContentScript({ action: 'startContainerSelection' });
+      sendMessageToContentScript({ action: 'startLayoutEditor' });
       // 关闭弹出窗口
       window.close();
     } else {
-      alert('请先打开微博页面，然后再选择宽屏容器。');
+      alert('请先打开微博页面，然后再使用布局编辑器。');
+    }
+  });
+
+  // 重置布局按钮
+  document.getElementById('layout-reset-btn').addEventListener('click', async () => {
+    if (confirm('确定要重置所有自定义布局吗？这将清除所有保存的布局配置。')) {
+      // 清除布局编辑器配置
+      chrome.storage.local.remove(['layoutEditor_config', 'customWidescreenStyles'], () => {
+        console.log('[微博增强] 布局配置已重置');
+        // 刷新页面以应用重置
+        refreshCurrentTab();
+      });
     }
   });
 

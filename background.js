@@ -2,9 +2,8 @@
 
 // 配置项键名列表 - 这些数据在清理时会保留
 const CONFIG_KEYS = [
-  'widescreen_enabled',
-  'widescreen_loose', 
-  'widescreen_notify_enabled',
+  'layoutEditor_config',
+  'customWidescreenStyles',
   'background_enabled',
   'background_type',
   'background_url',
@@ -24,7 +23,7 @@ async function clearCacheData() {
     const allData = await new Promise(resolve => {
       chrome.storage.local.get(null, resolve);
     });
-    
+
     // 保存配置数据
     const configData = {};
     CONFIG_KEYS.forEach(key => {
@@ -32,10 +31,10 @@ async function clearCacheData() {
         configData[key] = allData[key];
       }
     });
-    
+
     // 清空所有数据
     await chrome.storage.local.clear();
-    
+
     // 恢复配置数据
     if (Object.keys(configData).length > 0) {
       await chrome.storage.local.set(configData);
@@ -43,7 +42,7 @@ async function clearCacheData() {
     } else {
       console.log('[微博增强] 缓存已清理，无配置需要保留');
     }
-    
+
     return true;
   } catch (error) {
     console.error('[微博增强] 清理缓存失败:', error);
@@ -65,42 +64,41 @@ chrome.management.onEnabled.addListener(async (info) => {
       return;
     }
     console.log('[微博增强] 扩展已启用，开始配置验证和缓存清理...');
-    
+
     try {
       // 获取当前存储的配置
       const existingSettings = await new Promise(resolve => {
         chrome.storage.local.get(null, resolve);
       });
-      
+
       console.log('[微博增强] 现有配置:', existingSettings);
-      
+
       // 验证关键配置项
       const requiredKeys = [
-        'widescreen_enabled', 'background_enabled', 'userOverride',
+        'background_enabled', 'userOverride',
         'background_type', 'background_opacity'
       ];
-      
+
       const missingKeys = requiredKeys.filter(key => !(key in existingSettings));
-      
+
       if (missingKeys.length > 0) {
         console.warn('[微博增强] 发现缺失配置项:', missingKeys);
-        
+
         // 补充缺失的配置项
         const defaultValues = {
-          widescreen_enabled: true,
           background_enabled: false,
           userOverride: false,
           background_type: 'bing',
           background_opacity: 1.0
         };
-        
+
         const configsToAdd = {};
         missingKeys.forEach(key => {
           if (key in defaultValues) {
             configsToAdd[key] = defaultValues[key];
           }
         });
-        
+
         if (Object.keys(configsToAdd).length > 0) {
           await chrome.storage.local.set(configsToAdd);
           console.log('[微博增强] 已补充缺失配置:', configsToAdd);
@@ -108,14 +106,14 @@ chrome.management.onEnabled.addListener(async (info) => {
       } else {
         console.log('[微博增强] 配置完整性验证通过');
       }
-      
+
       // 清理缓存数据但保留用户配置
       await clearCacheData();
-      
+
     } catch (error) {
       console.error('[微博增强] 启用时处理失败:', error);
     }
-    
+
     // 已删除扩展启用通知
   }
 });
@@ -131,11 +129,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   console.log('微博增强扩展已安装，原因:', details.reason);
     // 设置默认配置
   const defaultSettings = {
-    // 宽屏设置
-    widescreen_enabled: true,
-    widescreen_loose: false,
-    widescreen_notify_enabled: false,
-      // 背景设置
+    // 背景设置
     background_enabled: false,
     background_type: 'bing',
     background_url: '',
@@ -144,12 +138,12 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     background_content_opacity: 0.7,
     background_content_blur: 1,
     background_notify_enabled: true,
-    
+
     // 主题设置
     userOverride: false,
     userThemeMode: false
   };
-  
+
   // 只在首次安装或重新安装时设置默认配置，更新时保留用户配置
   if (details.reason === 'install') {
     await chrome.storage.local.set(defaultSettings);
@@ -232,14 +226,14 @@ chrome.runtime.onStartup.addListener(async () => {
     const existingSettings = await new Promise(resolve => {
       chrome.storage.local.get(null, resolve);
     });
-    
+
     // 验证关键配置项是否存在
     const requiredKeys = [
-      'widescreen_enabled', 'background_enabled', 'userOverride'
+      'background_enabled', 'userOverride'
     ];
-    
+
     const missingKeys = requiredKeys.filter(key => !(key in existingSettings));
-    
+
     if (missingKeys.length > 0) {
       console.warn('[微博增强] 启动时发现缺失配置项:', missingKeys);
       // 可以选择设置缺失的默认值或者提示用户
@@ -254,7 +248,7 @@ chrome.runtime.onStartup.addListener(async () => {
 // 处理来自内容脚本的消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('[微博增强后台] 收到消息:', message);
-  
+
   // 获取设置
   if (message.action === 'getSettings') {
     chrome.storage.local.get(null, (result) => {
@@ -267,7 +261,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     return true; // 表示将异步发送响应
   }
-  
+
   // 更新设置
   if (message.action === 'updateSettings') {
     chrome.storage.local.set(message.settings, () => {
@@ -280,24 +274,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     return true;
   }
-  
+
   // 主题变更消息处理
   if (message.action === 'themeChanged') {
     console.log('[微博增强后台] 收到主题变更消息:', message);
-    
+
     // 更新存储中的主题设置
     const themeData = {
       userOverride: message.userOverride,
       userThemeMode: message.userThemeMode || message.isDark
     };
-    
+
     chrome.storage.local.set(themeData, () => {
       if (chrome.runtime.lastError) {
         console.error('[微博增强后台] 主题设置保存失败:', chrome.runtime.lastError);
         sendResponse({ success: false, error: chrome.runtime.lastError.message });
       } else {
         console.log('[微博增强后台] 主题设置已同步到存储');
-        
+
         // 更新扩展图标（可选）
         const iconPath = 'icons/favicon.png';
         chrome.action.setIcon({
@@ -310,17 +304,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }).catch(err => {
           console.log('[微博增强后台] 设置图标失败（正常）:', err);
         });
-        
+
         sendResponse({ success: true });
       }
     });
     return true;
   }
-  
+
   // 主题重置消息处理
   if (message.action === 'themeReset') {
     console.log('[微博增强后台] 收到主题重置消息:', message);
-    
+
     chrome.storage.local.set({
       userOverride: false,
       userThemeMode: false
@@ -335,7 +329,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     return true;
   }
-  
+
   // 请求主题同步
   if (message.type === 'requestThemeSync') {
     chrome.storage.local.get(['userOverride', 'userThemeMode'], (result) => {
@@ -353,41 +347,41 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             if (tabs[0]) {
               chrome.tabs.sendMessage(tabs[0].id, { type: 'getSystemTheme' }, (response) => {
                 const systemTheme = response && response.isDark !== undefined ? response.isDark : false;
-                sendResponse({ 
-                  success: true, 
+                sendResponse({
+                  success: true,
                   themeMode: systemTheme,
-                  userOverride: result.userOverride 
+                  userOverride: result.userOverride
                 });
               });
             } else {
               // 如果没有活动标签页，默认使用浅色主题
-              sendResponse({ 
-                success: true, 
+              sendResponse({
+                success: true,
                 themeMode: false,
-                userOverride: result.userOverride 
+                userOverride: result.userOverride
               });
             }
           });
           return true; // 保持消息通道打开，等待异步响应
         }
-        
-        sendResponse({ 
-          success: true, 
+
+        sendResponse({
+          success: true,
           themeMode: themeMode,
-          userOverride: result.userOverride 
+          userOverride: result.userOverride
         });
       }
     });
     return true;
   }
-  
+
   // 显示通知功能已删除（仅保留版本更新通知）
   if (message.action === 'showNotification') {
     // 通知功能已禁用
     sendResponse({ success: false, error: '通知功能已禁用' });
     return true;
   }
-  
+
   // 获取必应图片
   if (message.action === 'fetchBingImage') {
     fetchBingImageInBackground().then(result => {
@@ -398,7 +392,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     return true;
   }
-  
+
   // 清除缓存
   if (message.action === 'clearCache') {
     clearCacheData().then(success => {
@@ -409,7 +403,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     return true;
   }
-  
+
   // 如果没有匹配的消息类型，返回false表示不处理
   console.warn('[微博增强后台] 未识别的消息类型:', message);
   return false;
@@ -419,7 +413,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 async function fetchBingImageInBackground() {
     const now = Date.now();
     const BING_CACHE_KEY = 'weiboUpBingCache';
-    
+
     try {
         // 检查缓存是否有效 (6小时)
         const cached = await new Promise(resolve => {
@@ -427,7 +421,7 @@ async function fetchBingImageInBackground() {
                 resolve(result[BING_CACHE_KEY]);
             });
         });
-        
+
         if (cached && (now - cached.timestamp) < 21600000) {
             console.log('[微博背景] 使用缓存的必应图片:', cached.url.substring(0, 100) + '...');
             return { success: true, url: cached.url };
@@ -440,46 +434,46 @@ async function fetchBingImageInBackground() {
             'https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1',
             'https://bing.com/HPImageArchive.aspx?format=js&idx=0&n=1'
         ];
-        
+
         let lastError = null;
-        
+
         for (let i = 0; i < apiUrls.length; i++) {
             try {
                 const apiUrl = apiUrls[i];
                 console.log(`[微博背景] 后台脚本正在尝试第${i+1}个必应API: ${apiUrl}`);
-                
+
                 const response = await fetch(apiUrl, {
                     method: 'GET',
                     headers: {
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
                     }
                 });
-                
+
                 if (!response.ok) {
                     throw new Error(`API请求失败: ${response.status} ${response.statusText}`);
                 }
-                
+
                 const data = await response.json();
                 console.log('[微博背景] 后台脚本必应API返回数据:', data);
-                
+
                 // 检查返回数据的格式
                 if (!data || !data.images || !Array.isArray(data.images) || data.images.length === 0) {
                     throw new Error('API返回数据格式不正确');
                 }
-                
+
                 // 获取第一张图片的URL
                 imageInfo = data.images[0];
                 if (!imageInfo.url) {
                     throw new Error('图片URL不存在');
                 }
-                
+
                 // 拼接完整的图片URL
                 const baseUrl = apiUrl.includes('cn.bing.com') ? 'https://cn.bing.com' : 'https://www.bing.com';
                 imageUrl = baseUrl + imageInfo.url;
-                
+
                 console.log(`[微博背景] 后台脚本第${i+1}个API成功获取图片`);
                 break; // 成功获取，跳出循环
-                
+
             } catch (error) {
                 console.error(`[微博背景] 后台脚本第${i+1}个API失败:`, error);
                 lastError = error;
@@ -494,16 +488,16 @@ async function fetchBingImageInBackground() {
         if (!imageUrl) {
             throw new Error('无法获取图片URL');
         }
-            
+
         console.log('[微博背景] 后台脚本获取到必应今日图片:', {
             title: imageInfo?.title || '未知标题',
             copyright: imageInfo?.copyright || '未知版权',
             url: imageUrl
         });
-        
+
         // 添加随机参数，避免缓存问题
         const finalUrl = imageUrl + (imageUrl.includes('?') ? '&' : '?') + '_t=' + now;
-        
+
         // 更新缓存
         await new Promise(resolve => {
             chrome.storage.local.set({
@@ -514,10 +508,10 @@ async function fetchBingImageInBackground() {
                 }
             }, resolve);
         });
-        
+
         console.log('[微博背景] 后台脚本成功获取必应图片：', finalUrl);
         return { success: true, url: finalUrl };
-        
+
     } catch (error) {
         console.error('[微博背景] 后台脚本获取必应图片出错:', error);
         return { success: false, error: error.message };

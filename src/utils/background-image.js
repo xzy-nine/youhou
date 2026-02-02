@@ -562,6 +562,12 @@ function addContentTransparencyStyles() {
     
     console.log('[微博背景] 应用背景颜色:', bgColor);    // 为微博内容添加半透明背景的CSS - 优化选择器
     existingStyle.textContent = `
+        /* 完全透明的特定元素 */
+        div:nth-child(5) > div._wrap_1ubn9_8:nth-child(1) {
+            background-color: transparent !important;
+            backdrop-filter: none !important;
+        }
+
         /* 主要内容容器 - 优化和合并选择器 */
         #__sidebar > div > div:nth-child(2) > div > div > div:nth-child(2),
         article,

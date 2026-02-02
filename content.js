@@ -69,10 +69,22 @@ async function initialize() {
     if (typeof setupCommentSystem === 'function') {
       setupCommentSystem();
     }
-      // 应用宽屏功能
-    if (typeof applyWidescreenStyles === 'function') {
-      applyWidescreenStyles();
-    }
+    
+    // 延迟应用布局编辑器配置（确保DOM完全加载）
+    setTimeout(() => {
+      if (window.layoutEditor && typeof window.layoutEditor.applySavedConfig === 'function') {
+        const result = window.layoutEditor.applySavedConfig();
+        console.log('[微博增强] 布局配置应用结果:', result);
+      }
+    }, 2000);
+
+    // 再次延迟应用（针对动态加载的内容）
+    setTimeout(() => {
+      if (window.layoutEditor && typeof window.layoutEditor.applySavedConfig === 'function') {
+        const result = window.layoutEditor.applySavedConfig();
+        console.log('[微博增强] 布局配置二次应用结果:', result);
+      }
+    }, 5000);
     
     // 注意：页面控制面板已移除，现在主要通过popup页面进行控制
     console.log('[微博增强] 主要控制面板已集成到扩展popup页面，点击扩展图标进行控制');
@@ -271,17 +283,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         
         return true; // 表示异步响应
         
-      case 'updateWidescreen':
-        // 重新从存储获取设置并应用
-        initStorage().then(() => {
-          applyWidescreenStyles();
-          sendResponse({ success: true });
-        }).catch(error => {
-          console.error('[微博增强] 宽屏设置更新失败:', error);
-          sendResponse({ success: false, error: error.message });
-        });
-        return true;
-        
       case 'updateBackground':
         // 重新从存储获取设置并应用
         initStorage().then(() => {
@@ -334,8 +335,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         try {
           const response = {
             success: true,
-            storageInitialized: typeof widescreenStore !== 'undefined' && typeof backgroundStore !== 'undefined',
-            widescreenEnabled: widescreenStore ? widescreenStore.enabled : false,
+            storageInitialized: typeof backgroundStore !== 'undefined',
             backgroundEnabled: backgroundStore ? backgroundStore.enabled : false,
             userOverride: userOverride || false
           };
@@ -350,6 +350,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // 启动容器选择模式
         startContainerSelection();
         sendResponse({ success: true });
+        return true;
+        
+      case 'startLayoutEditor':
+        // 启动布局编辑器
+        if (window.layoutEditor) {
+          window.layoutEditor.start();
+          sendResponse({ success: true });
+        } else {
+          sendResponse({ success: false, error: '布局编辑器未加载' });
+        }
+        return true;
+        
+      case 'stopLayoutEditor':
+        // 停止布局编辑器
+        if (window.layoutEditor) {
+          window.layoutEditor.stop();
+          sendResponse({ success: true });
+        } else {
+          sendResponse({ success: false, error: '布局编辑器未加载' });
+        }
         return true;
         
       case 'extractContent':
@@ -653,18 +673,13 @@ function extractCSS() {
 
 // 检查是否所有hook功能都已关闭
 function isAllHooksDisabled() {
-  // 检查宽屏功能是否关闭
-  if (widescreenStore && widescreenStore.enabled) {
-    return false;
-  }
-  
   // 检查背景功能是否关闭
   if (backgroundStore && backgroundStore.enabled) {
     return false;
   }
-  
+
   // 检查主题功能是否关闭（如果有）
   // 这里可以根据实际的主题功能实现进行检查
-  
+
   return true;
 }

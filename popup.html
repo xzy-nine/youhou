@@ -40,13 +40,22 @@
       border-radius: 12px;
       opacity: 1;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      overflow: hidden; /* 隐藏滚动条 */
-      scrollbar-width: none; /* Firefox */
-      -ms-overflow-style: none; /* IE/Edge */
+      overflow-y: auto; /* 允许垂直滚动 */
+      scrollbar-width: thin; /* Firefox */
+      -ms-overflow-style: auto; /* IE/Edge */
     }
-    
+
     .popup-container::-webkit-scrollbar {
-      display: none; /* Chrome/Safari/Webkit */
+      width: 6px; /* Chrome/Safari/Webkit */
+    }
+
+    .popup-container::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .popup-container::-webkit-scrollbar-thumb {
+      background-color: rgba(0, 0, 0, 0.2);
+      border-radius: 3px;
     }
     
     /* 全局隐藏所有滚动条 */
@@ -350,16 +359,9 @@
     <h3>微博增强</h3>
     
     <div class="control-group">
-      <div class="control-title">宽屏功能</div>
-      <button id="widescreen-toggle">
-        <span class="status-indicator"></span>
-        <span id="widescreen-status">加载中...</span>
-      </button>
-      <div class="checkbox-control">
-        <input type="checkbox" id="widescreen-loose">
-        <label for="widescreen-loose">更宽模式</label>
-      </div>
-      <button id="select-container-btn">选择宽屏容器</button>
+      <div class="control-title">自定义布局</div>
+      <button id="layout-editor-btn">自定义页面布局</button>
+      <button id="layout-reset-btn">重置布局</button>
       <button id="extract-content-btn">提取HTML和CSS</button>
       <button id="export-config-btn">导出配置</button>
       <button id="import-config-btn">导入配置</button>
