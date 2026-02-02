@@ -352,6 +352,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: true });
         return true;
         
+      case 'extractContent':
+        // 提取HTML和CSS
+        extractContent();
+        sendResponse({ success: true });
+        return true;
+        
       default:
         console.warn('[微博增强] 未识别的消息类型:', message.action);
         sendResponse({ success: false, error: '未识别的消息类型' });
@@ -388,6 +394,14 @@ function startContainerSelection() {
     }
     .container-selection-selected {
       outline: 3px solid #52c41a !important;
+      background-color: rgba(82, 196, 26, 0.1) !important;
+    }
+    .container-selection-parent {
+      outline: 2px solid #ff4d4f !important;
+      background-color: rgba(255, 77, 79, 0.1) !important;
+    }
+    .container-selection-child {
+      outline: 2px solid #52c41a !important;
       background-color: rgba(82, 196, 26, 0.1) !important;
     }
   `;
@@ -434,9 +448,7 @@ function stopContainerSelection() {
   }
   
   // 移除所有高亮效果
-  document.querySelectorAll('.container-selection-hover, .container-selection-selected').forEach(el => {
-    el.classList.remove('container-selection-hover', 'container-selection-selected');
-  });
+  clearAllHighlights();
   
   selectedElement = null;
 }
@@ -449,16 +461,40 @@ function handleMouseOver(e) {
   const excludeTags = ['HTML', 'BODY', 'SCRIPT', 'STYLE', 'HEAD', 'META', 'LINK'];
   if (excludeTags.includes(e.target.tagName)) return;
   
-  // 添加高亮效果
+  // 清除之前的所有高亮
+  clearAllHighlights();
+  
+  // 添加当前元素高亮（蓝色）
   e.target.classList.add('container-selection-hover');
+  
+  // 显示父容器（红色）
+  if (e.target.parentNode && !excludeTags.includes(e.target.parentNode.tagName)) {
+    e.target.parentNode.classList.add('container-selection-parent');
+  }
+  
+  // 显示子容器（绿色）
+  const children = e.target.children;
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    if (!excludeTags.includes(child.tagName)) {
+      child.classList.add('container-selection-child');
+    }
+  }
+}
+
+// 清除所有高亮
+function clearAllHighlights() {
+  document.querySelectorAll('.container-selection-hover, .container-selection-selected, .container-selection-parent, .container-selection-child').forEach(el => {
+    el.classList.remove('container-selection-hover', 'container-selection-selected', 'container-selection-parent', 'container-selection-child');
+  });
 }
 
 // 处理鼠标离开
 function handleMouseOut(e) {
   if (!selectionMode) return;
   
-  // 移除高亮效果
-  e.target.classList.remove('container-selection-hover');
+  // 清除所有高亮
+  clearAllHighlights();
 }
 
 // 处理点击
@@ -475,10 +511,8 @@ function handleClick(e) {
   // 选中元素
   selectedElement = e.target;
   
-  // 移除其他元素的高亮效果
-  document.querySelectorAll('.container-selection-hover, .container-selection-selected').forEach(el => {
-    el.classList.remove('container-selection-hover', 'container-selection-selected');
-  });
+  // 清除所有高亮
+  clearAllHighlights();
   
   // 为选中元素添加选中样式
   selectedElement.classList.add('container-selection-selected');
@@ -548,4 +582,89 @@ function generateSelector(element) {
   }
   
   return selector;
+}
+
+// 提取HTML和CSS
+function extractContent() {
+  // 检查是否所有hook功能都已关闭
+  if (!isAllHooksDisabled()) {
+    alert('请先关闭本拓展的所有hook功能，然后再提取HTML和CSS。');
+    return;
+  }
+  
+  console.log('[微博增强] 开始提取HTML和CSS');
+  
+  // 提取HTML
+  const html = document.documentElement.outerHTML;
+  
+  // 提取CSS
+  const css = extractCSS();
+  
+  // 创建提取的内容对象
+  const extractedContent = {
+    html: html,
+    css: css,
+    timestamp: new Date().toISOString(),
+    url: window.location.href
+  };
+  
+  // 将提取的内容转换为JSON字符串
+  const contentString = JSON.stringify(extractedContent, null, 2);
+  
+  // 创建下载链接
+  const blob = new Blob([contentString], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `weibo-extract-${new Date().toISOString().split('T')[0]}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  
+  console.log('[微博增强] HTML和CSS提取完成');
+  alert('HTML和CSS提取完成，已下载为JSON文件。');
+}
+
+// 提取所有CSS
+function extractCSS() {
+  let css = '';
+  
+  // 遍历所有样式表
+  for (let i = 0; i < document.styleSheets.length; i++) {
+    const sheet = document.styleSheets[i];
+    
+    try {
+      // 检查是否可以访问样式表
+      if (sheet.cssRules) {
+        // 提取内联样式规则
+        for (let j = 0; j < sheet.cssRules.length; j++) {
+          const rule = sheet.cssRules[j];
+          css += rule.cssText + '\n';
+        }
+      }
+    } catch (e) {
+      console.log('[微博增强] 无法访问样式表:', e);
+    }
+  }
+  
+  return css;
+}
+
+// 检查是否所有hook功能都已关闭
+function isAllHooksDisabled() {
+  // 检查宽屏功能是否关闭
+  if (widescreenStore && widescreenStore.enabled) {
+    return false;
+  }
+  
+  // 检查背景功能是否关闭
+  if (backgroundStore && backgroundStore.enabled) {
+    return false;
+  }
+  
+  // 检查主题功能是否关闭（如果有）
+  // 这里可以根据实际的主题功能实现进行检查
+  
+  return true;
 }

@@ -406,6 +406,18 @@ function setupEventListeners() {
   // 配置文件输入变化事件
   document.getElementById('config-file-input').addEventListener('change', handleConfigImport);
 
+  // 提取HTML和CSS按钮
+  document.getElementById('extract-content-btn').addEventListener('click', async () => {
+    const isWeibo = await isWeiboPage();
+    if (isWeibo) {
+      sendMessageToContentScript({ action: 'extractContent' });
+      // 关闭弹出窗口
+      window.close();
+    } else {
+      alert('请先打开微博页面，然后再提取HTML和CSS。');
+    }
+  });
+
   // 刷新按钮事件监听器
   document.getElementById('refresh-btn').addEventListener('click', () => {
     refreshCurrentTab();
