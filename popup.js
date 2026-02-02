@@ -374,13 +374,37 @@ function setupEventListeners() {
     chrome.storage.local.set({ background_content_blur: value });
     sendMessageToContentScript({ action: 'updateBackground' });
   });// 通知设置 - 同时控制宽屏和背景通知
-  document.getElementById('notification-toggle').addEventListener('change', (e) => {    userSettings.widescreen_notify_enabled = e.target.checked;
+  document.getElementById('notification-toggle').addEventListener('change', (e) => {
+    userSettings.widescreen_notify_enabled = e.target.checked;
     userSettings.background_notify_enabled = e.target.checked;
     chrome.storage.local.set({ 
       widescreen_notify_enabled: e.target.checked,
       background_notify_enabled: e.target.checked
     });
   });
+
+  // 选择宽屏容器按钮
+  document.getElementById('select-container-btn').addEventListener('click', async () => {
+    const isWeibo = await isWeiboPage();
+    if (isWeibo) {
+      sendMessageToContentScript({ action: 'startContainerSelection' });
+      // 关闭弹出窗口
+      window.close();
+    } else {
+      alert('请先打开微博页面，然后再选择宽屏容器。');
+    }
+  });
+
+  // 导出配置按钮
+  document.getElementById('export-config-btn').addEventListener('click', exportConfig);
+
+  // 导入配置按钮
+  document.getElementById('import-config-btn').addEventListener('click', () => {
+    document.getElementById('config-file-input').click();
+  });
+
+  // 配置文件输入变化事件
+  document.getElementById('config-file-input').addEventListener('change', handleConfigImport);
 
   // 刷新按钮事件监听器
   document.getElementById('refresh-btn').addEventListener('click', () => {
@@ -423,6 +447,19 @@ function sendMessageToContentScript(message) {
     } else {
       console.log('设置已保存，将在打开微博页面时自动应用');
     }
+  });
+}
+
+// 检查是否在微博页面
+function isWeiboPage() {
+  return new Promise((resolve) => {
+    chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+      if (tabs[0] && tabs[0].url && tabs[0].url.includes('weibo.com')) {
+        resolve(true);
+      } else {
+        resolve(false);
+      }
+    });
   });
 }
 
@@ -690,4 +727,85 @@ function requestThemeSync() {
       console.warn('[微博增强 Popup] 主题同步响应无效:', response);
     }
   });
+}
+
+// 导出配置
+function exportConfig() {
+  // 获取当前所有设置
+  chrome.storage.local.get(null, (settings) => {
+    if (chrome.runtime.lastError) {
+      console.error('[微博增强 Popup] 导出配置失败:', chrome.runtime.lastError);
+      return;
+    }
+    
+    // 创建配置对象
+    const config = {
+      version: '1.0',
+      exportDate: new Date().toISOString(),
+      settings: settings
+    };
+    
+    // 转换为JSON字符串
+    const configString = JSON.stringify(config, null, 2);
+    
+    // 创建下载链接
+    const blob = new Blob([configString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `weibo-pro-config-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    console.log('[微博增强 Popup] 配置已导出');
+  });
+}
+
+// 处理配置导入
+function handleConfigImport(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    try {
+      const config = JSON.parse(event.target.result);
+      
+      if (config.settings) {
+        // 保存导入的设置
+        chrome.storage.local.set(config.settings, () => {
+          if (chrome.runtime.lastError) {
+            console.error('[微博增强 Popup] 导入配置失败:', chrome.runtime.lastError);
+            return;
+          }
+          
+          console.log('[微博增强 Popup] 配置已导入:', config);
+          
+          // 更新本地设置对象
+          userSettings = { ...userSettings, ...config.settings };
+          
+          // 更新UI
+          updateUI();
+          
+          // 通知content script更新设置
+          sendMessageToContentScript({ action: 'updateWidescreen' });
+          sendMessageToContentScript({ action: 'updateBackground' });
+          
+          // 显示成功提示
+          alert('配置导入成功！');
+        });
+      } else {
+        alert('无效的配置文件！');
+      }
+    } catch (error) {
+      console.error('[微博增强 Popup] 解析配置文件失败:', error);
+      alert('解析配置文件失败！');
+    }
+  };
+  reader.readAsText(file);
+  
+  // 重置文件输入
+  e.target.value = '';
 }

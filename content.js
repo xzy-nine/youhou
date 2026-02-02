@@ -346,6 +346,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         return true;
         
+      case 'startContainerSelection':
+        // 启动容器选择模式
+        startContainerSelection();
+        sendResponse({ success: true });
+        return true;
+        
       default:
         console.warn('[微博增强] 未识别的消息类型:', message.action);
         sendResponse({ success: false, error: '未识别的消息类型' });
@@ -358,3 +364,188 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 });
+
+// 容器选择器工具
+let selectionMode = false;
+let selectedElement = null;
+let selectionStyle = null;
+
+// 启动容器选择模式
+function startContainerSelection() {
+  if (selectionMode) return;
+  
+  selectionMode = true;
+  console.log('[微博增强] 启动容器选择模式');
+  
+  // 添加选择模式样式
+  selectionStyle = document.createElement('style');
+  selectionStyle.id = 'container-selection-style';
+  selectionStyle.textContent = `
+    .container-selection-hover {
+      outline: 2px solid #1890ff !important;
+      background-color: rgba(24, 144, 255, 0.1) !important;
+      cursor: crosshair !important;
+    }
+    .container-selection-selected {
+      outline: 3px solid #52c41a !important;
+      background-color: rgba(82, 196, 26, 0.1) !important;
+    }
+  `;
+  document.head.appendChild(selectionStyle);
+  
+  // 添加鼠标移动事件监听器
+  document.addEventListener('mouseover', handleMouseOver);
+  document.addEventListener('mouseout', handleMouseOut);
+  document.addEventListener('click', handleClick);
+  document.addEventListener('keydown', handleKeyDown);
+  
+  // 显示提示
+  alert('容器选择模式已启动，请点击您想要设置为宽屏的容器元素。\n\n按ESC键取消选择。');
+}
+
+// 处理键盘事件
+function handleKeyDown(e) {
+  if (!selectionMode) return;
+  
+  // 按ESC键取消选择
+  if (e.key === 'Escape') {
+    stopContainerSelection();
+    alert('容器选择已取消。');
+  }
+}
+
+// 停止容器选择模式
+function stopContainerSelection() {
+  if (!selectionMode) return;
+  
+  selectionMode = false;
+  console.log('[微博增强] 停止容器选择模式');
+  
+  // 移除事件监听器
+  document.removeEventListener('mouseover', handleMouseOver);
+  document.removeEventListener('mouseout', handleMouseOut);
+  document.removeEventListener('click', handleClick);
+  document.removeEventListener('keydown', handleKeyDown);
+  
+  // 移除样式
+  if (selectionStyle) {
+    selectionStyle.remove();
+    selectionStyle = null;
+  }
+  
+  // 移除所有高亮效果
+  document.querySelectorAll('.container-selection-hover, .container-selection-selected').forEach(el => {
+    el.classList.remove('container-selection-hover', 'container-selection-selected');
+  });
+  
+  selectedElement = null;
+}
+
+// 处理鼠标悬停
+function handleMouseOver(e) {
+  if (!selectionMode) return;
+  
+  // 排除某些元素
+  const excludeTags = ['HTML', 'BODY', 'SCRIPT', 'STYLE', 'HEAD', 'META', 'LINK'];
+  if (excludeTags.includes(e.target.tagName)) return;
+  
+  // 添加高亮效果
+  e.target.classList.add('container-selection-hover');
+}
+
+// 处理鼠标离开
+function handleMouseOut(e) {
+  if (!selectionMode) return;
+  
+  // 移除高亮效果
+  e.target.classList.remove('container-selection-hover');
+}
+
+// 处理点击
+function handleClick(e) {
+  if (!selectionMode) return;
+  
+  e.preventDefault();
+  e.stopPropagation();
+  
+  // 排除某些元素
+  const excludeTags = ['HTML', 'BODY', 'SCRIPT', 'STYLE', 'HEAD', 'META', 'LINK'];
+  if (excludeTags.includes(e.target.tagName)) return;
+  
+  // 选中元素
+  selectedElement = e.target;
+  
+  // 移除其他元素的高亮效果
+  document.querySelectorAll('.container-selection-hover, .container-selection-selected').forEach(el => {
+    el.classList.remove('container-selection-hover', 'container-selection-selected');
+  });
+  
+  // 为选中元素添加选中样式
+  selectedElement.classList.add('container-selection-selected');
+  
+  // 生成选择器
+  const selector = generateSelector(selectedElement);
+  console.log('[微博增强] 选中元素:', selectedElement);
+  console.log('[微博增强] 生成的选择器:', selector);
+  
+  // 保存选择的容器
+  chromeStorage.setValue('customWidescreenContainer', selector).then(() => {
+    console.log('[微博增强] 自定义宽屏容器已保存:', selector);
+    
+    // 停止选择模式
+    stopContainerSelection();
+    
+    // 显示成功提示
+    alert('宽屏容器选择成功！已保存为自定义容器。\n\n选择器: ' + selector);
+    
+    // 重新应用宽屏样式
+    if (typeof applyWidescreenStyles === 'function') {
+      applyWidescreenStyles();
+    }
+  });
+}
+
+// 生成元素的唯一选择器
+function generateSelector(element) {
+  if (!element) return '';
+  if (element.id) return `#${element.id}`;
+  
+  let selector = '';
+  let current = element;
+  
+  while (current && current.tagName !== 'HTML') {
+    let part = current.tagName.toLowerCase();
+    
+    // 添加类名
+    if (current.classList.length > 0) {
+      const classes = Array.from(current.classList).filter(cls => {
+        // 排除动态生成的类名
+        return !cls.match(/^[a-z0-9]+_[a-z0-9]+$/i) && 
+               !cls.match(/^react-/i) &&
+               !cls.match(/^vue-/i) &&
+               !cls.match(/^woo-/i) &&
+               !cls.match(/^Frame-/i) &&
+               !cls.match(/^Main-/i) &&
+               !cls.match(/^Content-/i) &&
+               !cls.match(/^box-/i) &&
+               cls.length > 2; // 排除太短的类名，可能是动态生成的
+      });
+      
+      if (classes.length > 0) {
+        part += '.' + classes.slice(0, 2).join('.'); // 最多使用前两个类名
+      }
+    }
+    
+    // 添加nth-child
+    const siblings = Array.from(current.parentNode.children);
+    const index = siblings.indexOf(current) + 1;
+    if (siblings.length > 1) {
+      part += `:nth-child(${index})`;
+    }
+    
+    selector = part + (selector ? ' > ' + selector : '');
+    current = current.parentNode;
+  }
+  
+  return selector;
+}
