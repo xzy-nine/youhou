@@ -9,3 +9,4 @@
 # 临时文件
 .DS_Store
 Thumbs.db
+.trae/documents/
