@@ -11,12 +11,12 @@ const weiboWidescreenCSS = `
     }
     
     /* 新版微博主要布局 */
-    [class*=Frame_content] {
+    #homeWrap {
         --main-width: var(--inject-page-width);
         width: var(--inject-page-width);
     }
     
-    [class*=Frame_content] > div:nth-of-type(2) {
+    #homeWrap > div:nth-of-type(2) {
         flex: 1;
     }
     
@@ -164,7 +164,7 @@ const weiboWidescreenLooseCSS = `
   }
   
   /* 更宽模式下的特殊调整 */
-  .inject-widescreen-loose-js [class*=Frame_content],
+  .inject-widescreen-loose-js #homeWrap,
   .inject-widescreen-loose-js [class*=Frame_content2] {
     width: var(--inject-page-width) !important;
     max-width: var(--inject-page-width) !important;
