@@ -14,10 +14,30 @@ const weiboWidescreenCSS = `
     #homeWrap {
         --main-width: var(--inject-page-width);
         width: var(--inject-page-width);
+        margin: 0 auto;
+        display: flex;
+        justify-content: center;
     }
     
-    #homeWrap > div:nth-of-type(2) {
+    /* 主内容区域 */
+    #homeWrap > div:nth-child(2) {
+        display: flex;
+        width: 100%;
+    }
+    
+    /* 左侧边栏 */
+    #homeWrap > div:nth-child(2) > div:nth-child(1) {
+        flex-shrink: 0;
+    }
+    
+    /* 中间内容区域 */
+    #homeWrap > div:nth-child(2) > div:nth-child(2) {
         flex: 1;
+    }
+    
+    /* 右侧边栏 */
+    #homeWrap > div:nth-child(2) > div:nth-child(3) {
+        flex-shrink: 0;
     }
     
     [class*=Frame_main],
@@ -168,6 +188,26 @@ const weiboWidescreenLooseCSS = `
   .inject-widescreen-loose-js [class*=Frame_content2] {
     width: var(--inject-page-width) !important;
     max-width: var(--inject-page-width) !important;
+    margin: 0 auto !important;
+    display: flex !important;
+    justify-content: center !important;
+  }
+  
+  /* 更宽模式下的主内容区域 */
+  .inject-widescreen-loose-js #homeWrap > div:nth-child(2) {
+    display: flex !important;
+    width: 100% !important;
+  }
+  
+  /* 更宽模式下的侧边栏 */
+  .inject-widescreen-loose-js #homeWrap > div:nth-child(2) > div:nth-child(1),
+  .inject-widescreen-loose-js #homeWrap > div:nth-child(2) > div:nth-child(3) {
+    flex-shrink: 0 !important;
+  }
+  
+  /* 更宽模式下的中间内容区域 */
+  .inject-widescreen-loose-js #homeWrap > div:nth-child(2) > div:nth-child(2) {
+    flex: 1 !important;
   }
   
   /* 确保返回顶部按钮位置正确 */

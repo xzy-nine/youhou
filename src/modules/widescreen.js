@@ -112,10 +112,30 @@ function applyBaseWidescreenStyles(isUpdate = false) {
             --main-width: var(--inject-page-width);
             width: var(--inject-page-width);
             max-width: var(--inject-page-width);
+            margin: 0 auto;
+            display: flex;
+            justify-content: center;
           }
           
-          ${customSelector} > div:nth-of-type(2) {
+          /* 主内容区域 */
+          ${customSelector} > div:nth-child(2) {
+            display: flex;
+            width: 100%;
+          }
+          
+          /* 左侧边栏 */
+          ${customSelector} > div:nth-child(2) > div:nth-child(1) {
+            flex-shrink: 0;
+          }
+          
+          /* 中间内容区域 */
+          ${customSelector} > div:nth-child(2) > div:nth-child(2) {
             flex: 1;
+          }
+          
+          /* 右侧边栏 */
+          ${customSelector} > div:nth-child(2) > div:nth-child(3) {
+            flex-shrink: 0;
           }
         }
       `;
@@ -151,6 +171,26 @@ function applyBaseWidescreenStyles(isUpdate = false) {
             .inject-widescreen-loose-js ${customSelector} {
               width: var(--inject-page-width) !important;
               max-width: var(--inject-page-width) !important;
+              margin: 0 auto !important;
+              display: flex !important;
+              justify-content: center !important;
+            }
+            
+            /* 更宽模式下的主内容区域 */
+            .inject-widescreen-loose-js ${customSelector} > div:nth-child(2) {
+              display: flex !important;
+              width: 100% !important;
+            }
+            
+            /* 更宽模式下的侧边栏 */
+            .inject-widescreen-loose-js ${customSelector} > div:nth-child(2) > div:nth-child(1),
+            .inject-widescreen-loose-js ${customSelector} > div:nth-child(2) > div:nth-child(3) {
+              flex-shrink: 0 !important;
+            }
+            
+            /* 更宽模式下的中间内容区域 */
+            .inject-widescreen-loose-js ${customSelector} > div:nth-child(2) > div:nth-child(2) {
+              flex: 1 !important;
             }
           }
         `;
