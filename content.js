@@ -1,21 +1,6 @@
 // 微博增强Chrome扩展内容脚本
 // 注意：所有依赖已在manifest.json中按顺序加载，无需导入
 
-// 处理PC域名跳转到移动端
-if (window.location.hostname.includes('weibo.com') && !window.location.hostname.includes('m.weibo.cn')) {
-  // 设置移动设备UA
-  const mobileUA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1';
-  
-  // 重定向到m.weibo.cn
-  const path = window.location.pathname;
-  const search = window.location.search;
-  const hash = window.location.hash;
-  const mobileUrl = `https://m.weibo.cn${path}${search}${hash}`;
-  
-  console.log('[微博增强] 检测到PC版微博，正在跳转到移动端:', mobileUrl);
-  window.location.replace(mobileUrl);
-}
-
 // 主初始化函数
 async function initialize() {
   try {

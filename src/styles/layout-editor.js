@@ -5,7 +5,7 @@ const layoutEditorCSS = `
   user-select: none !important;
 }
 
-/* 工具栏样式 */
+/* 工具栏样式 - 置于最高层，避免被选中层遮挡 */
 #layout-editor-toolbar {
   position: fixed;
   top: 20px;
@@ -15,7 +15,7 @@ const layoutEditorCSS = `
   border: 1px solid #d9d9d9;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 999999;
+  z-index: 1000002;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 13px;
   color: #333;
@@ -306,6 +306,16 @@ const layoutEditorCSS = `
 /* 选择模式 */
 .layout-editor-selecting * {
   cursor: crosshair !important;
+}
+
+/* 选择模式下工具栏及其子元素保持正常指针 */
+.layout-editor-selecting #layout-editor-toolbar,
+.layout-editor-selecting #layout-editor-toolbar * {
+  cursor: default !important;
+}
+
+.layout-editor-selecting #layout-editor-toolbar .toolbar-btn {
+  cursor: pointer !important;
 }
 
 .layout-editor-selecting .layout-editor-hover {

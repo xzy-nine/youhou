@@ -2,29 +2,6 @@
 
 // 配置项键名列表 - 这些数据在清理时会保留
 
-// 修改UA并处理域名跳转
-chrome.webRequest.onBeforeSendHeaders.addListener(
-  function(details) {
-    // 检查是否是微博PC版域名
-    if (details.url.includes('weibo.com') && !details.url.includes('m.weibo.cn')) {
-      // 设置移动设备UA
-      const mobileUA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1';
-      
-      // 查找并修改UA头
-      for (let i = 0; i < details.requestHeaders.length; i++) {
-        if (details.requestHeaders[i].name.toLowerCase() === 'user-agent') {
-          details.requestHeaders[i].value = mobileUA;
-          break;
-        }
-      }
-      
-      console.log('[微博增强] 已修改UA为移动设备UA:', mobileUA);
-    }
-    return { requestHeaders: details.requestHeaders };
-  },
-  { urls: ['https://*.weibo.com/*', 'https://m.weibo.cn/*'] },
-  ['blocking', 'requestHeaders']
-);
 const CONFIG_KEYS = [
   'layoutEditor_config',
   'customWidescreenStyles',
